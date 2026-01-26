@@ -18,7 +18,7 @@ const Slider = React.forwardRef<
     {...props}
   >
     <SliderPrimitive.Track
-      className="relative h-2 w-full grow overflow-hidden rounded-full bg-white/10 transition-colors"
+      className="relative h-3 sm:h-2 w-full grow overflow-hidden rounded-full bg-white/10 transition-colors"
     >
       <SliderPrimitive.Range 
         className={cn(
@@ -31,11 +31,14 @@ const Slider = React.forwardRef<
     </SliderPrimitive.Track>
     <SliderPrimitive.Thumb
       className={cn(
-        "block h-5 w-5 rounded-full border-2 shadow-lg ring-offset-background transition-all duration-150",
+        "block h-6 w-6 sm:h-5 sm:w-5 rounded-full border-2 shadow-lg ring-offset-background transition-all duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         "disabled:pointer-events-none disabled:opacity-50",
         "hover:scale-110 active:scale-95",
-        "opacity-0 group-hover/slider:opacity-100 focus-visible:opacity-100 transition-opacity",
+        // Always visible on mobile, show on hover/focus on desktop
+        "opacity-100 sm:opacity-0 sm:group-hover/slider:opacity-100 focus-visible:opacity-100 transition-opacity",
+        // Better touch target on mobile
+        "touch-manipulation cursor-grab active:cursor-grabbing",
         variant === 'emerald'
           ? "bg-emerald-400 border-emerald-500/50 focus-visible:ring-emerald-500/50"
           : "bg-white border-white/50 focus-visible:ring-white/50"

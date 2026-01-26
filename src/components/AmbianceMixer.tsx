@@ -46,11 +46,11 @@ export default function AmbianceMixer() {
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10 w-full">
+    <div className="bg-white/5 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/10 w-full">
       
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-white/90">Nature Sounds</h2>
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-base sm:text-lg font-semibold text-white/90">Nature Sounds</h2>
         {hasActiveSounds && (
           <button
             onClick={resetAll}
@@ -64,15 +64,15 @@ export default function AmbianceMixer() {
       </div>
 
       {/* Quick Presets */}
-      <div className="mb-6">
-        <p className="text-xs text-white/40 uppercase tracking-wider mb-3">Quick Presets</p>
-        <div className="grid grid-cols-3 gap-2">
+      <div className="mb-4 sm:mb-6">
+        <p className="text-xs text-white/40 uppercase tracking-wider mb-2 sm:mb-3">Quick Presets</p>
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           {PRESETS.map((preset) => (
             <button
               key={preset.id}
               onClick={() => applyPreset(preset.id)}
               className={cn(
-                "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-200",
+                "flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200",
                 activePreset === preset.id
                   ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
                   : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
@@ -93,10 +93,10 @@ export default function AmbianceMixer() {
       </div>
       
       {/* Divider */}
-      <div className="h-px bg-white/10 mb-6" />
+      <div className="h-px bg-white/10 mb-4 sm:mb-6" />
 
       {/* Individual Sound Controls */}
-      <div className="space-y-5">
+      <div className="space-y-4 sm:space-y-5">
         {SOUNDS.map((sound) => {
           const isActive = volumes[sound.id] > 0;
           return (
@@ -140,7 +140,7 @@ export default function AmbianceMixer() {
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-white/10 my-6" />
+      <div className="h-px bg-white/10 my-4 sm:my-6" />
 
       {/* Master Controls */}
       <div className="space-y-4">

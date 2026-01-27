@@ -25,7 +25,7 @@ export default function Home() {
         <div className="lg:col-span-4 lg:sticky lg:top-8 space-y-4 sm:space-y-6 pt-0">
             <AmbianceMixer />
             
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border border-white/5 text-xs sm:text-sm text-white/40 space-y-2">
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/10 text-xs sm:text-sm text-white/40 space-y-2 shadow-glass">
                 <p>Recitation by Mishary Rashid Alafasy.</p>
                 <p>Select a Juz to begin playback. Adjust ambient sounds to your preference.</p>
                 <p className="text-emerald-400/60 text-xs pt-2 border-t border-white/5 mt-3">

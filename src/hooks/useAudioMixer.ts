@@ -63,18 +63,20 @@ export function useAudioMixer() {
 
   // Initialize Audio objects
   useEffect(() => {
+    const currentRefs = audioRefs.current;
+    
     SOUNDS.forEach((sound) => {
-        if (!audioRefs.current[sound.id]) {
+        if (!currentRefs[sound.id]) {
             const audio = new Audio(sound.src);
             audio.loop = true;
             audio.volume = 0; // Start muted/0 volume
-            audioRefs.current[sound.id] = audio;
+            currentRefs[sound.id] = audio;
         }
     });
 
     return () => {
         // Cleanup pause
-        Object.values(audioRefs.current).forEach(audio => audio?.pause());
+        Object.values(currentRefs).forEach(audio => audio?.pause());
     };
   }, []);
 

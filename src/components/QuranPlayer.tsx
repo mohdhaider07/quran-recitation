@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Pause, SkipForward, SkipBack, Loader2, Volume2, VolumeX, BookOpen, ChevronLeft, ChevronRight, List, Globe, Keyboard } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, BookOpen, ChevronLeft, ChevronRight, List, Globe, Keyboard } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -372,7 +372,7 @@ export default function QuranPlayer() {
   return (
     <div
       ref={playerRef}
-      className="bg-white/5 backdrop-blur-md rounded-none sm:rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 border-0 sm:border border-white/10 w-full max-w-3xl mx-auto shadow-2xl relative overflow-hidden group"
+      className="bg-white/5 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/10 w-full max-w-3xl mx-auto shadow-glass-emerald relative overflow-hidden group"
       tabIndex={-1}
     >
       {/* Subtle Gradient Glow */}
@@ -391,10 +391,10 @@ export default function QuranPlayer() {
               ref={shortcutsButtonRef}
               onClick={() => setShowShortcuts(!showShortcuts)}
               className={cn(
-                "p-2 sm:p-2.5 rounded-lg sm:rounded-xl border transition-all focus-ring touch-manipulation",
+                "p-2 sm:p-2.5 rounded-lg sm:rounded-xl border btn-interactive",
                 showShortcuts
-                  ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
-                  : "bg-black/20 border-white/5 text-white/50 hover:text-white hover:bg-white/10"
+                  ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30"
+                  : "bg-black/20 border-white/5 text-white/50 btn-secondary"
               )}
               aria-label="Show keyboard shortcuts"
               title="Keyboard shortcuts"
@@ -407,10 +407,10 @@ export default function QuranPlayer() {
               ref={ayahListButtonRef}
               onClick={() => setShowAyahList(!showAyahList)}
               className={cn(
-                "p-2 sm:p-2.5 rounded-lg sm:rounded-xl border transition-all focus-ring touch-manipulation",
+                "p-2 sm:p-2.5 rounded-lg sm:rounded-xl border btn-interactive",
                 showAyahList
-                  ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
-                  : "bg-black/20 border-white/5 text-white/50 hover:text-white hover:bg-white/10"
+                  ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30"
+                  : "bg-black/20 border-white/5 text-white/50 btn-secondary"
               )}
               aria-label="Toggle ayah list"
             >
@@ -421,7 +421,7 @@ export default function QuranPlayer() {
               <button
                 onClick={prevJuz}
                 disabled={juz === 1}
-                className="p-1.5 sm:p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg disabled:opacity-30 transition-all focus-ring touch-manipulation"
+                className="p-1.5 sm:p-2 btn-interactive btn-secondary disabled:opacity-30"
                 aria-label="Previous Juz"
               >
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -446,7 +446,7 @@ export default function QuranPlayer() {
               <button
                 onClick={nextJuz}
                 disabled={juz === 30}
-                className="p-1.5 sm:p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg disabled:opacity-30 transition-all focus-ring touch-manipulation"
+                className="p-1.5 sm:p-2 btn-interactive btn-secondary disabled:opacity-30"
                 aria-label="Next Juz"
               >
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -613,7 +613,7 @@ export default function QuranPlayer() {
           <button
             onClick={prevAyah}
             disabled={currentAyahIndex === 0}
-            className="text-white/40 hover:text-emerald-400 disabled:opacity-20 transition-colors p-2 sm:p-2.5 focus-ring rounded-lg touch-manipulation"
+            className="text-white/40 hover:text-emerald-400 btn-interactive btn-ghost disabled:opacity-20"
             aria-label="Previous ayah"
           >
             <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -621,7 +621,7 @@ export default function QuranPlayer() {
 
           <button
             onClick={skipBackward}
-            className="text-white/40 hover:text-emerald-400 transition-colors p-2 sm:p-2.5 focus-ring rounded-lg touch-manipulation"
+            className="text-white/40 hover:text-emerald-400 btn-interactive btn-ghost"
             aria-label="Skip back 10 seconds"
             title="Skip -10s (J)"
           >
@@ -631,7 +631,7 @@ export default function QuranPlayer() {
           <button
             onClick={togglePlay}
             className={cn(
-              "relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-[0_0_40px_-5px_rgba(16,185,129,0.4)] hover:shadow-[0_0_60px_-10px_rgba(16,185,129,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 focus-ring",
+              "relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-glow-emerald hover:shadow-glow-emerald-strong hover:scale-105 active:scale-95 transition-all duration-300 focus-ring",
               isLoading && "opacity-50 pointer-events-none"
             )}
             aria-label={isPlaying ? "Pause" : "Play"}
@@ -645,7 +645,7 @@ export default function QuranPlayer() {
 
           <button
             onClick={skipForward}
-            className="text-white/40 hover:text-emerald-400 transition-colors p-2 sm:p-2.5 focus-ring rounded-lg touch-manipulation"
+            className="text-white/40 hover:text-emerald-400 btn-interactive btn-ghost"
             aria-label="Skip forward 10 seconds"
             title="Skip +10s (L)"
           >
@@ -655,7 +655,7 @@ export default function QuranPlayer() {
           <button
             onClick={nextAyah}
             disabled={!ayahs.length || currentAyahIndex === ayahs.length - 1}
-            className="text-white/40 hover:text-emerald-400 disabled:opacity-20 transition-colors p-2 sm:p-2.5 focus-ring rounded-lg touch-manipulation"
+            className="text-white/40 hover:text-emerald-400 btn-interactive btn-ghost disabled:opacity-20"
             aria-label="Next ayah"
           >
             <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />

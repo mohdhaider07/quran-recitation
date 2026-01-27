@@ -46,7 +46,7 @@ export default function AmbianceMixer() {
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/10 w-full">
+    <div className="bg-white/5 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/10 w-full shadow-glass">
       
       {/* Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -54,7 +54,7 @@ export default function AmbianceMixer() {
         {hasActiveSounds && (
           <button
             onClick={resetAll}
-            className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+            className="btn-interactive btn-ghost text-white/40"
             aria-label="Reset all sounds"
             title="Reset all"
           >
@@ -72,10 +72,10 @@ export default function AmbianceMixer() {
               key={preset.id}
               onClick={() => applyPreset(preset.id)}
               className={cn(
-                "flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-200",
+                "flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border btn-interactive",
                 activePreset === preset.id
-                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
-                  : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30"
+                  : "bg-white/5 border-white/10 text-white/60 btn-secondary"
               )}
             >
               <div className={cn(

@@ -148,3 +148,88 @@ body {
   border-radius: 0.25rem;
   color: rgba(255, 255, 255, 0.6);
 }
+
+/* Standardized Shadow System */
+.shadow-glass {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.shadow-glass-emerald {
+  box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.15);
+}
+
+.shadow-glow-emerald {
+  box-shadow: 0 0 40px -5px rgba(16, 185, 129, 0.4);
+}
+
+.shadow-glow-emerald-strong {
+  box-shadow: 0 0 60px -10px rgba(16, 185, 129, 0.6);
+}
+
+/* Standardized Button States */
+.btn-interactive {
+  transition: all 0.2s;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  touch-action: manipulation;
+}
+
+.btn-interactive:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btn-interactive:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.6);
+  outline-offset: 2px;
+}
+
+.btn-interactive:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.btn-secondary {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+  border-radius: 0.5rem;
+}
+
+.btn-primary {
+  background-color: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: rgb(74, 222, 128);
+  border-radius: 0.5rem;
+}
+
+.btn-ghost {
+  color: rgba(255, 255, 255, 0.5);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+/* Additional Responsive Improvements */
+@media (max-width: 640px) {
+  .mobile-adjust {
+    padding: 0.75rem !important;
+  }
+  
+  .mobile-text {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Better touch targets for mobile */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Ensure content doesn't overflow on small screens */
+@media (max-width: 375px) {
+  body {
+    font-size: 14px;
+  }
+}

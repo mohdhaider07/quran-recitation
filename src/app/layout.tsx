@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
+import Providers from "@/app/providers";
 
 const outfit = Outfit({ subsets: ["latin"] });
 
@@ -35,7 +36,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={outfit.className}>{children}</body>
+      <body className={outfit.className}>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

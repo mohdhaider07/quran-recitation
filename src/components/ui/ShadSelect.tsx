@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
 
 interface ShadSelectProps {
   value: string | number;
@@ -31,11 +32,13 @@ export function ShadSelect({
   contentClassName,
   icon,
 }: ShadSelectProps) {
+  const { theme } = useTheme();
+
   return (
     <Select value={String(value)} onValueChange={onValueChange}>
       <SelectTrigger
         className={cn(
-          "dark:bg-black/20 dark:border-white/10 dark:text-white",
+          "bg-theme-card border border-theme-border text-theme-text font-semibold focus:ring-4 ring-theme-ring transition-all duration-300",
           triggerClassName
         )}
       >
@@ -46,7 +49,8 @@ export function ShadSelect({
       </SelectTrigger>
       <SelectContent
         className={cn(
-          "dark:bg-slate-900 dark:border-white/10 dark:text-white max-h-[300px]",
+          "bg-theme-card/95 border border-theme-border text-theme-text backdrop-blur-3xl shadow-xl rounded-2xl",
+          "max-h-75",
           contentClassName
         )}
       >
@@ -54,7 +58,9 @@ export function ShadSelect({
           <SelectItem
             key={option.value}
             value={String(option.value)}
-            className="dark:focus:bg-primary/20 dark:focus:text-accent"
+            className={cn(
+              "focus:bg-linear-to-r focus:from-theme-primary-start focus:to-theme-primary-end focus:text-white cursor-pointer transition-all"
+            )}
           >
             {option.label}
           </SelectItem>

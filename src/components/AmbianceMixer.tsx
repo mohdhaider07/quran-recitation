@@ -18,8 +18,11 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function AmbianceMixer() {
+  const { theme } = useTheme();
+
   const {
     volumes,
     setVolume,
@@ -36,7 +39,7 @@ export default function AmbianceMixer() {
   const getIcon = (iconName: string, isActive: boolean = false) => {
     const baseClass = cn(
       "w-5 h-5 transition-all duration-300",
-      isActive && "text-accent"
+      isActive && theme.textAccent
     );
 
     switch (iconName) {
@@ -56,7 +59,7 @@ export default function AmbianceMixer() {
   };
 
   return (
-    <GlassCard className="p-4 sm:p-6 w-full">
+    <GlassCard className={`p-4 sm:p-6 w-full ${theme.cardBg} ${theme.border}`}>
       <SectionHeader
         title="Nature Sounds"
         action={
@@ -76,7 +79,12 @@ export default function AmbianceMixer() {
 
       {/* Quick Presets */}
       <div className="mb-4 sm:mb-6">
-        <p className="text-xs text-white/40 uppercase tracking-wider mb-2 sm:mb-3">
+        <p
+          className={cn(
+            "text-xs uppercase tracking-wider mb-2 sm:mb-3",
+            theme.textMuted
+          )}
+        >
           Quick Presets
         </p>
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -86,16 +94,18 @@ export default function AmbianceMixer() {
               onClick={() => applyPreset(preset.id)}
               variant="outline"
               className={cn(
-                "h-auto flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-300",
+                "h-auto flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-500",
                 activePreset === preset.id
-                  ? "bg-primary/20 border-primary/40 text-accent hover:bg-primary/30 hover:text-accent"
-                  : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                  ? `${theme.cardBg} ${theme.activeBorder} ${theme.textAccent} shadow-sm`
+                  : `${theme.bgMuted} ${theme.border} ${theme.textMuted} hover:${theme.cardBg}`
               )}
             >
               <div
                 className={cn(
                   "p-2 rounded-lg transition-all",
-                  activePreset === preset.id ? "bg-primary/30" : "bg-white/10"
+                  activePreset === preset.id
+                    ? `bg-gradient-to-r ${theme.primary} text-white shadow-sm`
+                    : theme.cardBg
                 )}
               >
                 {getIcon(preset.icon, activePreset === preset.id)}
@@ -107,7 +117,7 @@ export default function AmbianceMixer() {
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-white/10 mb-4 sm:mb-6" />
+      <div className={cn("h-px mb-4 sm:mb-6 opacity-50", theme.border)} />
 
       {/* Individual Sound Controls */}
       <div className="space-y-4 sm:space-y-5">
@@ -119,8 +129,8 @@ export default function AmbianceMixer() {
                 className={cn(
                   "p-2.5 rounded-xl transition-all duration-300",
                   isActive
-                    ? "bg-primary/20 text-accent shadow-glow-primary"
-                    : "bg-white/5 text-white/50"
+                    ? `bg-gradient-to-br ${theme.primary} text-white shadow-lg`
+                    : `${theme.bgMuted} ${theme.textMuted}`
                 )}
               >
                 {getIcon(sound.icon, isActive)}
@@ -130,15 +140,15 @@ export default function AmbianceMixer() {
                   <span
                     className={cn(
                       "text-sm font-medium transition-colors",
-                      isActive ? "text-white" : "text-white/60"
+                      isActive ? theme.text : theme.textMuted
                     )}
                   >
                     {sound.label}
                   </span>
                   <span
                     className={cn(
-                      "text-xs tabular-nums transition-colors",
-                      isActive ? "text-accent" : "text-white/30"
+                      "text-xs tabular-nums transition-colors font-bold",
+                      isActive ? theme.textAccent : "text-gray-400"
                     )}
                   >
                     {Math.round(volumes[sound.id] * 100)}%
@@ -149,7 +159,6 @@ export default function AmbianceMixer() {
                   max={1}
                   step={0.01}
                   onValueChange={(val) => setVolume(sound.id, val[0])}
-                  variant="brand"
                   className="w-full"
                   aria-label={`${sound.label} volume`}
                 />
@@ -160,7 +169,7 @@ export default function AmbianceMixer() {
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-white/10 my-4 sm:my-6" />
+      <div className={cn("h-px my-4 sm:my-6 opacity-50", theme.border)} />
 
       {/* Master Controls */}
       <div className="space-y-4">
@@ -168,7 +177,7 @@ export default function AmbianceMixer() {
           <IconButton
             onClick={toggleMute}
             variant={
-              isMuted ? "danger" : hasActiveSounds ? "accent" : "secondary"
+              isMuted ? "danger" : hasActiveSounds ? "brand" : "secondary"
             }
             className="p-2.5"
             aria-label={isMuted ? "Unmute all sounds" : "Mute all sounds"}
@@ -182,13 +191,13 @@ export default function AmbianceMixer() {
           </IconButton>
           <div className="flex-1 space-y-1.5">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-white/60">
+              <span className={cn("text-sm font-medium", theme.textMuted)}>
                 Master Volume
               </span>
               <span
                 className={cn(
-                  "text-xs tabular-nums",
-                  isMuted ? "text-red-400" : "text-white/50"
+                  "text-xs tabular-nums font-bold",
+                  isMuted ? "text-red-400" : theme.textAccent
                 )}
               >
                 {isMuted ? "Muted" : `${Math.round(masterVolume * 100)}%`}
@@ -200,7 +209,6 @@ export default function AmbianceMixer() {
               step={0.01}
               onValueChange={(val) => setMasterVolume(val[0])}
               disabled={isMuted}
-              variant="brand"
               className={cn("w-full", isMuted && "opacity-50")}
               aria-label="Master volume"
             />

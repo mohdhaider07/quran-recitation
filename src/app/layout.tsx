@@ -1,9 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit } from "next/font/google";
+import { Amiri } from "next/font/google";
 import "./globals.css";
 import Providers from "@/app/providers";
+import ThemeBody from "@/components/ThemeBody";
 
-const outfit = Outfit({ subsets: ["latin"] });
+const amiri = Amiri({
+  subsets: ["arabic", "latin"],
+  weight: ["400", "700"],
+  variable: "--font-amiri",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   themeColor: "#020617",
@@ -35,10 +41,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={outfit.className}>
-        <Providers>{children}</Providers>
-      </body>
+    <html lang="en" className={amiri.variable}>
+      <Providers>
+        <ThemeBody>{children}</ThemeBody>
+      </Providers>
     </html>
   );
 }

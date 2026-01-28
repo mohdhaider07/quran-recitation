@@ -12,6 +12,7 @@ import {
   ChevronRight,
   List,
   Globe,
+  X,
 } from "lucide-react";
 import { useGetJuzQuery } from "@/store/api/quranApi";
 import { Slider } from "@/components/ui/slider";
@@ -21,6 +22,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { ShadSelect } from "@/components/ui/ShadSelect";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
 import React, {
   useState,
   useEffect,
@@ -46,15 +48,19 @@ const RECITERS: Reciter[] = [
   { id: "ur.khan", name: "Fateh Muhammad Jalandhari", language: "Urdu" },
 ];
 
-const SkeletonLoader = () => (
-  <div className="space-y-6 w-full max-w-lg mx-auto animate-fade-in-up">
-    <div className="h-12 bg-white/10 rounded-xl animate-shimmer" />
-    <div className="h-8 bg-white/10 rounded-lg w-3/4 mx-auto animate-shimmer" />
-    <div className="h-6 bg-white/10 rounded-full w-1/2 mx-auto animate-shimmer" />
-  </div>
-);
+const SkeletonLoader = () => {
+  return (
+    <div className="space-y-6 w-full max-w-lg mx-auto animate-fade-in-up">
+      <div className="h-12 rounded-xl animate-shimmer bg-theme-bg-muted" />
+      <div className="h-8 rounded-lg w-3/4 mx-auto animate-shimmer bg-theme-bg-muted" />
+      <div className="h-6 rounded-full w-1/2 mx-auto animate-shimmer bg-theme-bg-muted" />
+    </div>
+  );
+};
 
 export default function QuranPlayer() {
+  const { theme } = useTheme();
+
   const [juz, setJuz] = useState(1);
   const [reciter, setReciter] = useState(RECITERS[0].id);
   const [currentAyahIndex, setCurrentAyahIndex] = useState(0);
@@ -350,307 +356,322 @@ export default function QuranPlayer() {
   // Skeleton loader component
 
   return (
-    <GlassCard
-      ref={playerRef}
-      tone="brand"
-      className="p-4 sm:p-6 w-full max-w-3xl mx-auto relative overflow-hidden group"
-      tabIndex={-1}
-    >
-      {/* Subtle Gradient Glow */}
-      <div className="absolute top-0 left-0 w-full h-1/2 bg-primary/5 blur-3xl -z-10 group-hover:bg-primary/10 transition-all duration-700"></div>
-
-      {/* Header / Selector */}
-      <div className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
-        <SectionHeader
-          title="Quran Recitation"
-          subtitle={currentReciter.name}
-          titleClassName="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-1 sm:mb-2 tracking-tight"
-          subtitleClassName="font-medium text-xs sm:text-sm md:text-base"
-          action={
-            <div className="flex items-center gap-2 flex-wrap">
-              <IconButton
-                ref={ayahListButtonRef}
-                onClick={() => setShowAyahList(!showAyahList)}
-                variant={showAyahList ? "accent" : "secondary"}
-                aria-label="Toggle ayah list"
-              >
-                <List className="w-4 h-4 sm:w-5 sm:h-5" />
-              </IconButton>
-
-              <div className="flex items-center gap-1 sm:gap-2 bg-black/20 p-1 rounded-lg sm:rounded-xl border border-white/5 backdrop-blur-sm">
-                <IconButton
-                  onClick={prevJuz}
-                  disabled={juz === 1}
-                  variant="ghost"
-                  className="h-8 w-8 sm:h-9 sm:w-9 text-white/60 hover:text-white"
-                  aria-label="Previous Juz"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </IconButton>
-
-                <ShadSelect
-                  value={juz}
-                  onValueChange={(val) => changeJuz(Number(val))}
-                  options={Array.from({ length: 30 }, (_, i) => ({
-                    value: i + 1,
-                    label: `Juz ${i + 1}`,
-                  }))}
-                  triggerClassName="h-8 sm:h-9 border-none bg-transparent hover:bg-white/5 text-xs sm:text-sm font-medium w-24 sm:w-28"
-                  icon={<BookOpen className="w-3.5 h-3.5 text-accent" />}
-                />
-
-                <IconButton
-                  onClick={nextJuz}
-                  disabled={juz === 30}
-                  variant="ghost"
-                  className="h-8 w-8 sm:h-9 sm:w-9 text-white/60 hover:text-white"
-                  aria-label="Next Juz"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </IconButton>
-              </div>
-            </div>
-          }
-        />
-
-        {/* Reciter/Language Selector */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <ShadSelect
-            value={reciter}
-            onValueChange={changeReciter}
-            options={RECITERS.map((r) => ({
-              value: r.id,
-              label: `${r.name} (${r.language})`,
-            }))}
-            triggerClassName="w-full bg-black/20 border-white/10 text-xs sm:text-sm h-10 sm:h-11"
-            icon={
-              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent shrink-0" />
-            }
-          />
-        </div>
-      </div>
-
-      {/* Ayah List Panel */}
-      {showAyahList && (
-        <div
-          ref={ayahListRef}
-          className="mb-4 sm:mb-6 md:mb-8 max-h-[250px] sm:max-h-[300px] overflow-y-auto rounded-xl sm:rounded-2xl bg-black/20 border border-white/5 p-2 space-y-1 scrollbar-thin animate-fade-in-up"
-        >
-          {ayahs.map((ayah, index) => (
-            <button
-              key={ayah.number}
-              data-active={index === currentAyahIndex}
-              onClick={() => selectAyah(index)}
-              className={cn(
-                "w-full text-right p-3 rounded-xl transition-all flex items-center gap-3 focus-ring",
-                index === currentAyahIndex
-                  ? "bg-primary/20 border border-primary/30"
-                  : "hover:bg-white/5 border border-transparent"
-              )}
-            >
-              {/* Playing indicator */}
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <GlassCard className={`flex flex-col min-h-125 overflow-hidden group ${theme.cardBg} ${theme.border}`}>
+        <div className="p-4 sm:p-6 md:p-8 flex flex-col items-center grow">
+          <SectionHeader
+            title="Holy Quran"
+            className="w-full mb-6 sm:mb-8"
+            action={
               <div
                 className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                  index === currentAyahIndex
-                    ? "bg-primary text-white"
-                    : "bg-white/10 text-white/50"
+                  `flex rounded-full p-1 border ${theme.border} ${theme.bgMuted}`
                 )}
               >
-                {index === currentAyahIndex && isPlaying ? (
-                  <div className="flex gap-0.5 items-end h-4">
-                    <span
-                      className="w-0.5 bg-white rounded-full animate-pulse"
-                      style={{ height: "100%", animationDelay: "0ms" }}
-                    ></span>
-                    <span
-                      className="w-0.5 bg-white rounded-full animate-pulse"
-                      style={{ height: "60%", animationDelay: "150ms" }}
-                    ></span>
-                    <span
-                      className="w-0.5 bg-white rounded-full animate-pulse"
-                      style={{ height: "100%", animationDelay: "300ms" }}
-                    ></span>
-                  </div>
-                ) : (
-                  ayah.numberInSurah
-                )}
-              </div>
-
-              <div className="flex-1 text-right" dir="rtl">
-                <p
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAyahList(!showAyahList)}
                   className={cn(
-                    "text-lg font-arabic leading-relaxed line-clamp-1",
-                    index === currentAyahIndex ? "text-white" : "text-white/70"
+                    "rounded-full h-8 px-3 gap-2",
+                    showAyahList
+                      ? `bg-linear-to-r ${theme.primary} text-white shadow-sm`
+                      : theme.textMuted
                   )}
                 >
-                  {ayah.text}
-                </p>
-                <p
-                  className={cn(
-                    "text-xs mt-1",
-                    index === currentAyahIndex
-                      ? "text-accent/70"
-                      : "text-white/40"
-                  )}
-                >
-                  {ayah.surah.englishName} • Ayah {ayah.numberInSurah}
-                </p>
+                  <List className="w-4 h-4" />
+                  <span className="text-[10px] uppercase tracking-widest font-bold">
+                    List
+                  </span>
+                </Button>
               </div>
-            </button>
-          ))}
-        </div>
-      )}
+            }
+          />
 
-      {/* Main Display */}
-      <div className="text-center mb-4 sm:mb-6 md:mb-8 min-h-[140px] sm:min-h-[160px] md:min-h-[180px] flex flex-col justify-center items-center relative">
-        {isLoadingState ? (
-          <SkeletonLoader />
-        ) : isError ? (
-          <div className="text-white/50">
-            Failed to load this Juz. Try again.
-          </div>
-        ) : currentAyah ? (
-          <div
-            className="space-y-4 sm:space-y-5 md:space-y-6 animate-fade-in-up"
-            key={currentAyahIndex}
-          >
-            <div
-              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white font-arabic leading-loose tracking-wide drop-shadow-sm px-2 sm:px-0"
-              dir="rtl"
-            >
-              {currentAyah.text}
+          {isFetching ? (
+            <div className="grow flex items-center justify-center w-full">
+              <SkeletonLoader />
             </div>
-            <div className="inline-flex items-center justify-center gap-2 sm:gap-3 bg-surface/30 border border-primary/20 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-accent/80 text-xs sm:text-sm font-medium">
-              <span>{currentAyah.surah.englishName}</span>
-              <span className="w-1 h-1 rounded-full bg-primary/50"></span>
-              <span>Ayah {currentAyah.numberInSurah}</span>
-              <span className="w-1 h-1 rounded-full bg-primary/50"></span>
-              <span className="text-accent">
-                {currentAyahIndex + 1}/{ayahs.length}
+          ) : (
+            <div className="grow flex flex-col items-center justify-center w-full text-center space-y-6 sm:space-y-10 animate-fade-in-up">
+              <div className="space-y-6">
+
+              </div>
+
+              {/* Selection Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-sm mt-8">
+                <div className="space-y-1.5 text-left">
+                  <label
+                    className={cn(
+                      "text-[10px] uppercase tracking-widest font-bold ml-1",
+                      theme.textAccent
+                    )}
+                  >
+                    Select Juz
+                  </label>
+                  <ShadSelect
+                    value={juz.toString()}
+                    onValueChange={(val) => changeJuz(parseInt(val))}
+                    options={Array.from({ length: 30 }, (_, i) => ({
+                      value: (i + 1).toString(),
+                      label: `Juz ${i + 1}`,
+                    }))}
+                    placeholder="Select Juz"
+                  />
+                </div>
+
+                <div className="space-y-1.5 text-left">
+                  <label
+                    className={cn(
+                      "text-[10px] uppercase tracking-widest font-bold ml-1",
+                      theme.textAccent
+                    )}
+                  >
+                    Reciter
+                  </label>
+                  <ShadSelect
+                    value={reciter}
+                    onValueChange={changeReciter}
+                    options={RECITERS.map((r) => ({
+                      value: r.id,
+                      label: r.name,
+                    }))}
+                    placeholder="Reciter"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Main Player Bar */}
+        <div
+          className={cn(
+            `relative mt-auto border-t ${theme.border} transition-all duration-500 ${theme.bgMuted}`
+          )}
+        >
+          {/* Progress Bar Container */}
+          <div className="px-6 py-4 space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className={cn("text-[10px] font-mono", theme.textMuted)}>
+                {formatTime(currentTime)}
+              </span>
+              <span className={cn("text-[10px] font-mono", theme.textMuted)}>
+                {formatTime(duration)}
               </span>
             </div>
+            <Slider
+              value={[currentTime]}
+              max={duration || 100}
+              step={0.1}
+              onValueChange={(val) => {
+                if (audioRef.current) audioRef.current.currentTime = val[0];
+              }}
+              className="cursor-pointer"
+            />
           </div>
-        ) : (
-          <div className="text-white/50">Select a Juz to begin</div>
-        )}
-      </div>
 
-      {/* Controls */}
-      <div className="flex flex-col gap-4 sm:gap-5 md:gap-6 max-w-md mx-auto">
-        {/* Progress Bar with Time */}
-        <div className="space-y-2">
-          <Slider
-            value={[progress]}
-            max={100}
-            step={0.1}
-            onValueChange={handleSeek}
-            variant="brand"
-            className="cursor-pointer"
-            aria-label="Playback progress"
-          />
-          <div className="flex justify-between text-xs text-accent/60 font-medium tabular-nums">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+          {/* Controls Layout */}
+          <div className="px-6 pb-8 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-0">
+            {/* Audio Visualization Replacement / Info */}
+            <div className="hidden sm:flex items-center gap-3 w-1/4">
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
+                  isPlaying
+                    ? `bg-linear-to-br ${theme.primary} text-white shadow-lg animate-pulse`
+                    : `${theme.bgMuted} ${theme.textMuted}`
+                )}
+              >
+                {isPlaying ? (
+                  <Volume2 className="w-5 h-5" />
+                ) : (
+                  <VolumeX className="w-5 h-5" />
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-widest font-bold",
+                    theme.textAccent
+                  )}
+                >
+                  Reciting
+                </span>
+                <span
+                  className={cn(
+                    "text-xs font-medium truncate max-w-[120px]",
+                    theme.text
+                  )}
+                >
+                  {currentReciter.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Player Core Controls */}
+            <div className="flex items-center gap-4 sm:gap-8">
+              <IconButton
+                onClick={() =>
+                  setCurrentAyahIndex((prev) => Math.max(0, prev - 1))
+                }
+                disabled={currentAyahIndex === 0}
+                variant="secondary"
+                className="w-10 h-10 sm:w-12 sm:h-12"
+              >
+                <SkipBack className="w-5 h-5" />
+              </IconButton>
+
+              <button
+                onClick={togglePlay}
+                className={cn(
+                  "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 shadow-xl",
+                  `bg-linear-to-r ${theme.primary} text-white shadow-theme-primary`
+                )}
+              >
+                {isPlaying ? (
+                  <Pause className="w-8 h-8 fill-current" />
+                ) : (
+                  <Play className="w-8 h-8 fill-current ml-1" />
+                )}
+              </button>
+
+              <IconButton
+                onClick={() =>
+                  setCurrentAyahIndex((prev) =>
+                    Math.min(ayahs.length - 1, prev + 1)
+                  )
+                }
+                disabled={currentAyahIndex === ayahs.length - 1}
+                variant="secondary"
+                className="w-10 h-10 sm:w-12 sm:h-12"
+              >
+                <SkipForward className="w-5 h-5" />
+              </IconButton>
+            </div>
+
+            {/* Volume Control */}
+            <div className="flex items-center justify-end gap-3 w-1/4">
+              <div
+                className={cn(
+                  `hidden sm:flex items-center gap-3 rounded-full px-4 py-2 border ${theme.border} ${theme.bgMuted}`
+                )}
+              >
+                <IconButton
+                  onClick={toggleMute}
+                  variant="ghost"
+                  className="p-0 h-auto hover:bg-transparent"
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className={`w-4 h-4 ${theme.textMuted} opacity-50`} />
+                  ) : (
+                    <Volume2 className={cn("w-4 h-4", theme.textAccent)} />
+                  )}
+                </IconButton>
+                <Slider
+                  value={[isMuted ? 0 : volume]}
+                  max={1}
+                  step={0.01}
+                  onValueChange={(val) => {
+                    setVolume(val[0]);
+                    if (val[0] > 0) setIsMuted(false);
+                  }}
+                  className="w-20"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
-          <IconButton
-            onClick={prevAyah}
-            disabled={currentAyahIndex === 0}
-            variant="ghost"
-            className="text-white/40 hover:text-accent"
-            aria-label="Previous ayah"
-          >
-            <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
-          </IconButton>
-
-          <IconButton
-            onClick={skipBackward}
-            variant="ghost"
-            className="text-white/40 hover:text-accent"
-            aria-label="Skip back 10 seconds"
-          >
-            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-          </IconButton>
-
-          <Button
-            onClick={togglePlay}
-            size="icon"
+        {/* Slide-up Ayah List Overlay */}
+        <div
+          ref={ayahListRef}
+          className={cn(
+            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-theme-card/95",
+            showAyahList ? "translate-y-0" : "translate-y-full"
+          )}
+        >
+          <div
             className={cn(
-              "relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary hover:bg-accent text-white shadow-glow-primary hover:shadow-glow-primary-strong transition-all duration-300",
-              isLoadingState && "opacity-50 pointer-events-none"
+              `p-6 flex items-center justify-between border-b ${theme.border} ${theme.bgMuted}`
             )}
-            aria-label={isPlaying ? "Pause" : "Play"}
           >
-            {/* Pulse ring animation when playing */}
-            {isPlaying && (
-              <span className="absolute inset-0 rounded-full bg-accent animate-pulse-ring" />
-            )}
-            {isPlaying ? (
-              <Pause className="w-6 h-6 sm:w-7 sm:h-7 fill-current relative z-10" />
-            ) : (
-              <Play className="w-6 h-6 sm:w-7 sm:h-7 fill-current ml-1 relative z-10" />
-            )}
-          </Button>
+            <h3 className={cn("text-lg font-bold", theme.text)}>Ayat List</h3>
+            <IconButton
+              onClick={() => setShowAyahList(false)}
+              variant="ghost"
+              className={theme.textMuted}
+            >
+              <X className="w-5 h-5" />
+            </IconButton>
+          </div>
 
-          <IconButton
-            onClick={skipForward}
-            variant="ghost"
-            className="text-white/40 hover:text-accent"
-            aria-label="Skip forward 10 seconds"
-          >
-            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-          </IconButton>
+          <div className="grow overflow-y-auto">
+            {ayahs.map((ayah, index) => (
+              <button
+                key={ayah.number}
+                onClick={() => selectAyah(index)}
+                className={cn(
+                  "w-full text-right p-4 transition-all flex items-center gap-3 focus-ring",
+                  index === currentAyahIndex
+                    ? `bg-linear-to-r ${theme.primary} text-white`
+                    : `hover:${theme.bgMuted} border-y border-transparent ${theme.text}`
+                )}
+              >
+                {/* Playing indicator */}
+                <div
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                    index === currentAyahIndex
+                      ? "bg-white text-theme-primary-start"
+                      : `${theme.bgMuted} ${theme.textMuted}`
+                  )}
+                >
+                  {index === currentAyahIndex && isPlaying ? (
+                    <div className="flex gap-0.5 items-end h-4">
+                      <span
+                        className="w-0.5 rounded-full animate-pulse bg-current"
+                        style={{ height: "100%", animationDelay: "0ms" }}
+                      ></span>
+                      <span
+                        className="w-0.5 rounded-full animate-pulse bg-current"
+                        style={{ height: "60%", animationDelay: "150ms" }}
+                      ></span>
+                      <span
+                        className="w-0.5 rounded-full animate-pulse bg-current"
+                        style={{ height: "100%", animationDelay: "300ms" }}
+                      ></span>
+                    </div>
+                  ) : (
+                    index + 1
+                  )}
+                </div>
 
-          <IconButton
-            onClick={nextAyah}
-            disabled={!ayahs.length || currentAyahIndex === ayahs.length - 1}
-            variant="ghost"
-            className="text-white/40 hover:text-accent"
-            aria-label="Next ayah"
-          >
-            <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />
-          </IconButton>
+                <div className="flex-1 text-right" dir="rtl">
+                  <p
+                    className={cn(
+                      "text-lg font-arabic leading-relaxed line-clamp-1",
+                      index === currentAyahIndex ? "font-bold" : theme.text
+                    )}
+                  >
+                    {ayah.text}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xs mt-1",
+                      index === currentAyahIndex
+                        ? "text-white/80"
+                        : theme.textMuted
+                    )}
+                  >
+                    Ayah {index + 1}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-
-        <div className="flex items-center gap-4 w-full">
-          <IconButton
-            onClick={toggleMute}
-            variant="ghost"
-            className={cn(
-              "p-1",
-              isMuted
-                ? "text-red-400"
-                : volume === 0
-                ? "text-white/30"
-                : "text-accent"
-            )}
-            aria-label={isMuted ? "Unmute" : "Mute"}
-          >
-            {isMuted || volume === 0 ? (
-              <VolumeX className="w-5 h-5" />
-            ) : (
-              <Volume2 className="w-5 h-5" />
-            )}
-          </IconButton>
-          <Slider
-            value={[isMuted ? 0 : volume]}
-            max={1}
-            step={0.01}
-            onValueChange={(val) => {
-              setVolume(val[0]);
-              if (isMuted && val[0] > 0) setIsMuted(false);
-            }}
-            className={cn("cursor-pointer", isMuted && "opacity-50")}
-            aria-label="Volume"
-          />
-          <span className="text-xs text-white/40 tabular-nums w-10 text-right">
-            {isMuted ? "0" : Math.round(volume * 100)}%
-          </span>
-        </div>
-      </div>
-    </GlassCard>
+      </GlassCard>
+    </div>
   );
 }

@@ -37,9 +37,11 @@ export default function AmbianceMixer() {
   } = useAudioMixer();
 
   const getIcon = (iconName: string, isActive: boolean = false) => {
+    // When active, we want white text because the background is the primary gradient.
+    // When inactive, we want the accent color or muted color handled by parent/default.
     const baseClass = cn(
       "w-5 h-5 transition-all duration-300",
-      isActive && theme.textAccent
+      isActive ? "text-white" : theme.textAccent
     );
 
     switch (iconName) {
@@ -79,14 +81,7 @@ export default function AmbianceMixer() {
 
       {/* Quick Presets */}
       <div className="mb-4 sm:mb-6">
-        <p
-          className={cn(
-            "text-xs uppercase tracking-wider mb-2 sm:mb-3",
-            theme.textMuted
-          )}
-        >
-          Quick Presets
-        </p>
+       
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           {PRESETS.map((preset) => (
             <Button
@@ -96,16 +91,16 @@ export default function AmbianceMixer() {
               className={cn(
                 "h-auto flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-500",
                 activePreset === preset.id
-                  ? `${theme.cardBg} ${theme.activeBorder} ${theme.textAccent} shadow-sm`
-                  : `${theme.bgMuted} ${theme.border} ${theme.textMuted} hover:${theme.cardBg}`
+                  ? `${theme.cardBg} ${theme.activeBorder} ${theme.textAccent} shadow-sm ring-1 ring-teal-500/20`
+                  : `bg-transparent border-transparent ${theme.textMuted} hover:bg-teal-50/80 hover:border-teal-200 hover:text-teal-800`
               )}
             >
               <div
                 className={cn(
                   "p-2 rounded-lg transition-all",
                   activePreset === preset.id
-                    ? `bg-gradient-to-r ${theme.primary} text-white shadow-sm`
-                    : theme.cardBg
+                    ? `bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-sm`
+                    : "bg-teal-50 text-teal-600 group-hover:bg-teal-100/50"
                 )}
               >
                 {getIcon(preset.icon, activePreset === preset.id)}
@@ -129,8 +124,8 @@ export default function AmbianceMixer() {
                 className={cn(
                   "p-2.5 rounded-xl transition-all duration-300",
                   isActive
-                    ? `bg-gradient-to-br ${theme.primary} text-white shadow-lg`
-                    : `${theme.bgMuted} ${theme.textMuted}`
+                    ? `bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/20`
+                    : `bg-teal-50/50 text-teal-600/70`
                 )}
               >
                 {getIcon(sound.icon, isActive)}
@@ -140,7 +135,7 @@ export default function AmbianceMixer() {
                   <span
                     className={cn(
                       "text-sm font-medium transition-colors",
-                      isActive ? theme.text : theme.textMuted
+                      isActive ? "text-teal-900" : "text-teal-600/70"
                     )}
                   >
                     {sound.label}
@@ -148,7 +143,7 @@ export default function AmbianceMixer() {
                   <span
                     className={cn(
                       "text-xs tabular-nums transition-colors font-bold",
-                      isActive ? theme.textAccent : "text-gray-400"
+                      isActive ? "text-teal-700" : "text-gray-400"
                     )}
                   >
                     {Math.round(volumes[sound.id] * 100)}%

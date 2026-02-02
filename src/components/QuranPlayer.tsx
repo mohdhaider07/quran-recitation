@@ -19,8 +19,8 @@ import { Slider } from "@/components/ui/slider";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { IconButton } from "@/components/ui/IconButton";
-import { ShadSelect } from "@/components/ui/ShadSelect";
 import { Button } from "@/components/ui/button";
+import { ShadCombobox } from "@/components/ui/ShadCombobox";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 import React, {
@@ -398,46 +398,82 @@ export default function QuranPlayer() {
 
               </div>
 
-              {/* Selection Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-sm mt-8">
-                <div className="space-y-1.5 text-left">
-                  <label
-                    className={cn(
-                      "text-[10px] uppercase tracking-widest font-bold ml-1",
-                      theme.textAccent
-                    )}
-                  >
-                    Select Juz
-                  </label>
-                  <ShadSelect
-                    value={juz.toString()}
-                    onValueChange={(val) => changeJuz(parseInt(val))}
-                    options={Array.from({ length: 30 }, (_, i) => ({
-                      value: (i + 1).toString(),
-                      label: `Juz ${i + 1}`,
-                    }))}
-                    placeholder="Select Juz"
-                  />
+              {/* Premium Selection Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl mx-auto mt-8 animate-fade-in-up">
+                {/* Juz Selection Card */}
+                <div
+                  className={cn(
+                    "relative group p-5 rounded-2xl border transition-all duration-500 ease-out",
+                    "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
+                    "border-teal-100 hover:border-teal-300",
+                    "shadow-sm hover:shadow-teal-100/50 hover:-translate-y-1"
+                  )}
+                >
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-50/0 via-teal-50/0 to-teal-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition-colors duration-300 shadow-sm border border-teal-100/50">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 group-hover:text-teal-800 transition-colors">
+                          Selection
+                        </label>
+                        <span className="text-sm font-bold text-slate-800">
+                          Juz Selection
+                        </span>
+                      </div>
+                    </div>
+                    <ShadCombobox
+                      value={juz.toString()}
+                      onValueChange={(val) => changeJuz(parseInt(val))}
+                      options={Array.from({ length: 30 }, (_, i) => ({
+                        value: (i + 1).toString(),
+                        label: `Juz ${i + 1}`,
+                      }))}
+                      placeholder="Select Juz"
+                      triggerClassName="w-full bg-white/60 border-teal-100/80 hover:border-teal-400 focus:ring-teal-500/20 h-11"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5 text-left">
-                  <label
-                    className={cn(
-                      "text-[10px] uppercase tracking-widest font-bold ml-1",
-                      theme.textAccent
-                    )}
-                  >
-                    Reciter
-                  </label>
-                  <ShadSelect
-                    value={reciter}
-                    onValueChange={changeReciter}
-                    options={RECITERS.map((r) => ({
-                      value: r.id,
-                      label: r.name,
-                    }))}
-                    placeholder="Reciter"
-                  />
+                {/* Reciter Selection Card */}
+                <div
+                  className={cn(
+                    "relative group p-5 rounded-2xl border transition-all duration-500 ease-out",
+                    "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
+                    "border-teal-100 hover:border-teal-300",
+                    "shadow-sm hover:shadow-teal-100/50 hover:-translate-y-1"
+                  )}
+                >
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-50/0 via-teal-50/0 to-teal-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition-colors duration-300 shadow-sm border border-teal-100/50">
+                        <Globe className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 group-hover:text-teal-800 transition-colors">
+                          Audio
+                        </label>
+                        <span className="text-sm font-bold text-slate-800">
+                          Select Reciter
+                        </span>
+                      </div>
+                    </div>
+                    <ShadCombobox
+                      value={reciter}
+                      onValueChange={changeReciter}
+                      options={RECITERS.map((r) => ({
+                        value: r.id,
+                        label: r.name,
+                      }))}
+                      placeholder="Select Reciter"
+                      triggerClassName="w-full bg-white/60 border-teal-100/80 hover:border-teal-400 focus:ring-teal-500/20 h-11"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

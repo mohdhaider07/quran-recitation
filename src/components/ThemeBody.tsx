@@ -8,7 +8,7 @@ const outfit = Outfit({ subsets: ["latin"] });
 
 export default function ThemeBody({ children }: { children: React.ReactNode }) {
   const { theme, themeKey } = useTheme();
-  const isDark = themeKey === "dark";
+  const isDark = (themeKey as string) === "dark";
 
   return (
     <body

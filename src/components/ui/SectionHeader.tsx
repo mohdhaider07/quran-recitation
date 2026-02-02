@@ -23,7 +23,7 @@ export function SectionHeader({
       <div>
         <h2
           className={cn(
-            "text-base sm:text-lg font-semibold text-white/90",
+            "text-base sm:text-lg font-semibold text-slate-900",
             titleClassName
           )}
         >
@@ -32,7 +32,7 @@ export function SectionHeader({
         {subtitle && (
           <p
             className={cn(
-              "text-xs sm:text-sm text-accent/60",
+              "text-xs sm:text-sm text-teal-700/80",
               subtitleClassName
             )}
           >

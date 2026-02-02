@@ -6,7 +6,7 @@ interface ThemeState {
 }
 
 const initialState: ThemeState = {
-  activeTheme: "dark", // Default to dark or pearl? User asked for light themes, but app seems dark-first. Let's stick to dark as default for now or pick 'pearl' as it's the first light one.
+  activeTheme: "mint",
 };
 
 const themeSlice = createSlice({

@@ -5,37 +5,42 @@
 
 /* Theme Variables - these are switched by data-theme attribute */
 :root {
-  --foreground-rgb: 255, 255, 255;
+  --foreground-rgb: 15, 23, 42;
+  /* Slate-900 for Light Theme */
   --background-start-rgb: 10, 20, 30;
   --background-end-rgb: 0, 0, 0;
   --radius: 0.625rem;
 
-  /* App Theme Colors (RGB context for transparency) */
-  --color-primary-rgb: 16 185 129;
-  --color-accent-rgb: 52 211 153;
-  --color-muted-rgb: 21 128 61;
-  --color-surface-rgb: 2 44 34;
+  /* App Theme Colors (RGB context for transparency) - MINT/TEAL */
+  --color-primary-rgb: 20 184 166;
+  /* Teal-500 */
+  --color-accent-rgb: 45 212 191;
+  /* Teal-400 */
+  --color-muted-rgb: 13 148 136;
+  /* Teal-600 */
+  --color-surface-rgb: 19 78 74;
+  /* Teal-900 */
 
   /* App Background Gradient */
   --bg-gradient-main: linear-gradient(135deg, #0f172a 0%, rgb(var(--color-surface-rgb)) 50%, #0f172a 100%);
 
-  /* Default Theme Colors (Pearl) */
-  --primary-start: #059669;
-  --primary-end: #0d9488;
-  --accent: #10b981;
-  --card-bg: rgba(255, 255, 255, 0.8);
-  --card-border: #a7f3d0;
+  /* Default Theme Colors (Mint Fresh) */
+  --primary-start: #0d9488;
+  --primary-end: #0891b2;
+  --accent: #14b8a6;
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-border: #99f6e4;
   --text-main: #0f172a;
-  --text-muted: #475569;
-  --text-accent: #047857;
-  --bg-start: #f8fafc;
-  --bg-via: rgba(236, 253, 245, 0.3);
-  --bg-end: #f8fafc;
-  --bg-muted: #e2e8f0;
-  --slider-start: #10b981;
-  --slider-end: #0d9488;
-  --shadow-primary: rgba(167, 243, 208, 0.5);
-  --ring-primary: rgba(16, 185, 129, 0.2);
+  --text-muted: #0d9488;
+  --text-accent: #0f766e;
+  --bg-start: #f0fdfa;
+  --bg-via: rgba(236, 254, 255, 0.3);
+  --bg-end: #f0fdfa;
+  --bg-muted: #e0f2f1;
+  --slider-start: #14b8a6;
+  --slider-end: #06b6d4;
+  --shadow-primary: rgba(153, 246, 228, 0.5);
+  --ring-primary: rgba(20, 184, 166, 0.2);
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
 
@@ -304,6 +309,7 @@ body {
     transform: scale(1);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(1.4);
     opacity: 0;
@@ -314,24 +320,31 @@ body {
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
 }
 
 @keyframes glow-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.5;
   }
+
   50% {
     opacity: 1;
   }
 }
 
 @keyframes sound-wave {
-  0%, 100% {
+
+  0%,
+  100% {
     height: 4px;
   }
+
   50% {
     height: 12px;
   }
@@ -342,6 +355,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -465,6 +479,7 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

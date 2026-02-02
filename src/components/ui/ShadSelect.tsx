@@ -50,7 +50,7 @@ export function ShadSelect({
       <SelectContent
         className={cn(
           "bg-theme-card/95 border border-theme-border text-theme-text backdrop-blur-3xl shadow-xl rounded-2xl",
-          "max-h-75",
+          "max-h-[300px] overflow-y-auto",
           contentClassName
         )}
       >

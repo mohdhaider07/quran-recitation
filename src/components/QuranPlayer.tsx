@@ -20,7 +20,6 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/button";
-import { ShadCombobox } from "@/components/ui/ShadCombobox";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 import React, {
@@ -70,6 +69,8 @@ export default function QuranPlayer() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showAyahList, setShowAyahList] = useState(false);
+  const [showReciterList, setShowReciterList] = useState(false);
+  const [showJuzList, setShowJuzList] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ayahListRef = useRef<HTMLDivElement | null>(null);
@@ -362,30 +363,6 @@ export default function QuranPlayer() {
           <SectionHeader
             title="Holy Quran"
             className="w-full mb-6 sm:mb-8"
-            action={
-              <div
-                className={cn(
-                  `flex rounded-full p-1 border ${theme.border} ${theme.bgMuted}`
-                )}
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAyahList(!showAyahList)}
-                  className={cn(
-                    "rounded-full h-8 px-3 gap-2",
-                    showAyahList
-                      ? `bg-linear-to-r ${theme.primary} text-white shadow-sm`
-                      : theme.textMuted
-                  )}
-                >
-                  <List className="w-4 h-4" />
-                  <span className="text-[10px] uppercase tracking-widest font-bold">
-                    List
-                  </span>
-                </Button>
-              </div>
-            }
           />
 
           {isFetching ? (
@@ -393,88 +370,79 @@ export default function QuranPlayer() {
               <SkeletonLoader />
             </div>
           ) : (
-            <div className="grow flex flex-col items-center justify-center w-full text-center space-y-6 sm:space-y-10 animate-fade-in-up">
-              <div className="space-y-6">
-
-              </div>
-
-              {/* Premium Selection Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl mx-auto mt-8 animate-fade-in-up">
-                {/* Juz Selection Card */}
-                <div
+            <div className="flex flex-col w-full animate-fade-in-up">
+              {/* Selection Trigger Buttons */}
+              <div className="flex flex-col gap-3 w-full">
+                
+                {/* Reciter Trigger */}
+                <button
+                  onClick={() => setShowReciterList(true)}
                   className={cn(
-                    "relative group p-5 rounded-2xl border transition-all duration-500 ease-out",
+                    "w-full p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
                     "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
-                    "border-teal-100 hover:border-teal-300",
-                    "shadow-sm hover:shadow-teal-100/50 hover:-translate-y-1"
+                    "border-teal-100 hover:border-teal-300 hover:shadow-md"
                   )}
                 >
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-50/0 via-teal-50/0 to-teal-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition-colors duration-300 shadow-sm border border-teal-100/50">
-                        <BookOpen className="w-5 h-5" />
-                      </div>
-                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 group-hover:text-teal-800 transition-colors">
-                          Selection
-                        </label>
-                        <span className="text-sm font-bold text-slate-800">
-                          Juz Selection
-                        </span>
-                      </div>
-                    </div>
-                    <ShadCombobox
-                      value={juz.toString()}
-                      onValueChange={(val) => changeJuz(parseInt(val))}
-                      options={Array.from({ length: 30 }, (_, i) => ({
-                        value: (i + 1).toString(),
-                        label: `Juz ${i + 1}`,
-                      }))}
-                      placeholder="Select Juz"
-                      triggerClassName="w-full bg-white/60 border-teal-100/80 hover:border-teal-400 focus:ring-teal-500/20 h-11"
-                    />
+                  <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 shadow-sm border border-teal-100/50">
+                    <Globe className="w-5 h-5" />
                   </div>
-                </div>
+                  <div className="flex flex-col text-left flex-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70">
+                      Reciter
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">
+                      {currentReciter.name}
+                    </span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-teal-400" />
+                </button>
 
-                {/* Reciter Selection Card */}
-                <div
+                {/* Juz Trigger */}
+                <button
+                  onClick={() => setShowJuzList(true)}
                   className={cn(
-                    "relative group p-5 rounded-2xl border transition-all duration-500 ease-out",
+                    "w-full p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
                     "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
-                    "border-teal-100 hover:border-teal-300",
-                    "shadow-sm hover:shadow-teal-100/50 hover:-translate-y-1"
+                    "border-teal-100 hover:border-teal-300 hover:shadow-md"
                   )}
                 >
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-50/0 via-teal-50/0 to-teal-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition-colors duration-300 shadow-sm border border-teal-100/50">
-                        <Globe className="w-5 h-5" />
-                      </div>
-                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 group-hover:text-teal-800 transition-colors">
-                          Audio
-                        </label>
-                        <span className="text-sm font-bold text-slate-800">
-                          Select Reciter
-                        </span>
-                      </div>
-                    </div>
-                    <ShadCombobox
-                      value={reciter}
-                      onValueChange={changeReciter}
-                      options={RECITERS.map((r) => ({
-                        value: r.id,
-                        label: r.name,
-                      }))}
-                      placeholder="Select Reciter"
-                      triggerClassName="w-full bg-white/60 border-teal-100/80 hover:border-teal-400 focus:ring-teal-500/20 h-11"
-                    />
+                  <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 shadow-sm border border-teal-100/50">
+                    <BookOpen className="w-5 h-5" />
                   </div>
-                </div>
+                  <div className="flex flex-col text-left flex-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70">
+                      Juz
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">
+                      Juz {juz}
+                    </span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-teal-400" />
+                </button>
+
+                {/* Ayat Trigger */}
+                <button
+                  onClick={() => setShowAyahList(true)}
+                  className={cn(
+                    "w-full p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
+                    "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
+                    "border-teal-100 hover:border-teal-300 hover:shadow-md"
+                  )}
+                >
+                  <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 shadow-sm border border-teal-100/50">
+                    <List className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col text-left flex-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70">
+                      Ayat
+                    </span>
+                    <span className="text-sm font-bold text-slate-800">
+                      {ayahs.length} verses • Playing Ayah {currentAyahIndex + 1}
+                    </span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-teal-400" />
+                </button>
+
               </div>
             </div>
           )}
@@ -616,6 +584,138 @@ export default function QuranPlayer() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Slide-up Reciter List Overlay */}
+        <div
+          className={cn(
+            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-theme-card/95",
+            showReciterList ? "translate-y-0" : "translate-y-full"
+          )}
+        >
+          <div
+            className={cn(
+              `p-6 flex items-center justify-between border-b ${theme.border} ${theme.bgMuted}`
+            )}
+          >
+            <h3 className={cn("text-lg font-bold", theme.text)}>Select Reciter</h3>
+            <IconButton
+              onClick={() => setShowReciterList(false)}
+              variant="ghost"
+              className={theme.textMuted}
+            >
+              <X className="w-5 h-5" />
+            </IconButton>
+          </div>
+
+          <div className="grow overflow-y-auto">
+            {RECITERS.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => {
+                  changeReciter(r.id);
+                  setShowReciterList(false);
+                }}
+                className={cn(
+                  "w-full p-4 transition-all flex items-center gap-3 focus-ring",
+                  reciter === r.id
+                    ? `bg-gradient-to-r ${theme.primary} text-white`
+                    : `hover:${theme.bgMuted} border-y border-transparent ${theme.text}`
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
+                    reciter === r.id
+                      ? "bg-white text-theme-primary-start"
+                      : `${theme.bgMuted} ${theme.textMuted}`
+                  )}
+                >
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className={cn(
+                    "text-base font-semibold",
+                    reciter === r.id ? "text-white" : theme.text
+                  )}>
+                    {r.name}
+                  </span>
+                  <span className={cn(
+                    "text-xs",
+                    reciter === r.id ? "text-white/80" : theme.textMuted
+                  )}>
+                    {r.language}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Slide-up Juz List Overlay */}
+        <div
+          className={cn(
+            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-theme-card/95",
+            showJuzList ? "translate-y-0" : "translate-y-full"
+          )}
+        >
+          <div
+            className={cn(
+              `p-6 flex items-center justify-between border-b ${theme.border} ${theme.bgMuted}`
+            )}
+          >
+            <h3 className={cn("text-lg font-bold", theme.text)}>Select Juz</h3>
+            <IconButton
+              onClick={() => setShowJuzList(false)}
+              variant="ghost"
+              className={theme.textMuted}
+            >
+              <X className="w-5 h-5" />
+            </IconButton>
+          </div>
+
+          <div className="grow overflow-y-auto">
+            {Array.from({ length: 30 }, (_, i) => i + 1).map((juzNum) => (
+              <button
+                key={juzNum}
+                onClick={() => {
+                  changeJuz(juzNum);
+                  setShowJuzList(false);
+                }}
+                className={cn(
+                  "w-full p-4 transition-all flex items-center gap-3 focus-ring",
+                  juz === juzNum
+                    ? `bg-gradient-to-r ${theme.primary} text-white`
+                    : `hover:${theme.bgMuted} border-y border-transparent ${theme.text}`
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
+                    juz === juzNum
+                      ? "bg-white text-theme-primary-start"
+                      : `${theme.bgMuted} ${theme.textMuted}`
+                  )}
+                >
+                  {juzNum}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className={cn(
+                    "text-base font-semibold",
+                    juz === juzNum ? "text-white" : theme.text
+                  )}>
+                    Juz {juzNum}
+                  </span>
+                  <span className={cn(
+                    "text-xs",
+                    juz === juzNum ? "text-white/80" : theme.textMuted
+                  )}>
+                    Para {juzNum}
+                  </span>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 

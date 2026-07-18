@@ -1,22 +1,14 @@
 {
-  "name": "quran-app",
+  "name": "quran-ambience",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "cap:build": "npm run build && npx cap sync",
-    "cap:sync": "npx cap sync",
-    "cap:android": "npx cap open android",
-    "cap:ios": "npx cap open ios"
+    "lint": "eslint"
   },
   "dependencies": {
-    "@capacitor/android": "^8.0.2",
-    "@capacitor/cli": "^8.0.2",
-    "@capacitor/core": "^8.0.2",
-    "@capacitor/ios": "^8.0.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",

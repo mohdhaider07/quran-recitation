@@ -50,7 +50,7 @@ export function useAudioMixer() {
     birds: 0,
   });
   
-  const [masterVolume, setMasterVolume] = useState(0.8);
+  const [masterVolume, setMasterVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);

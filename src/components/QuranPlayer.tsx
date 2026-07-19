@@ -73,13 +73,23 @@ export default function QuranPlayer() {
   const [showReciterList, setShowReciterList] = useState(false);
   const [showJuzList, setShowJuzList] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const ayahListRef = useRef<HTMLDivElement | null>(null);
-  const playerRef = useRef<HTMLDivElement | null>(null);
-  const ayahListButtonRef = useRef<HTMLButtonElement | null>(null);
-  const isPlayingRef = useRef(false);
-  const ayahsLengthRef = useRef(0);
-  const juzRef = useRef(1);
+  const audioRef           = useRef<HTMLAudioElement | null>(null);
+  const ayahListRef         = useRef<HTMLDivElement | null>(null);
+  const playerRef           = useRef<HTMLDivElement | null>(null);
+  const ayahListButtonRef   = useRef<HTMLButtonElement | null>(null);
+
+  // ── Audio control refs ──────────────────────────────────────────────────────
+  // All refs that the onended handler reads must live here — never in closure
+  // state — so they work correctly when the WebView resumes after being
+  // backgrounded (screen lock, app-switch, etc.).
+  const isPlayingRef     = useRef(false);
+  const ayahsLengthRef   = useRef(0);
+  const juzRef           = useRef(1);
+  /** Full list of ayahs with their audio URLs for the current Juz. */
+  const ayahsRef         = useRef<typeof ayahs>([]);
+  /** The index that the audio element is *actually* playing (may lead React state). */
+  const currentIndexRef  = useRef(0);
+
 
   const currentReciter = RECITERS.find((r) => r.id === reciter) || RECITERS[0];
   const { data, isFetching, isError } = useGetJuzQuery({ juz, reciter });
@@ -120,28 +130,56 @@ export default function QuranPlayer() {
   // Initialize Audio
   useEffect(() => {
     audioRef.current = new Audio();
+
+    // ── onended: ref-only hot path ──────────────────────────────────────────────
+    // CRITICAL: this handler must NOT go through React state to advance the
+    // track. When the WebView resumes from background (screen unlock, app
+    // switch) JS runs briefly before potentially suspending again.
+    // Going through setState → re-render → effect is too many async steps.
+    //
+    // Instead we directly manipulate the <audio> element via refs. React state
+    // is updated afterwards for UI only (ayah index display, seek bar, etc.).
     audioRef.current.onended = () => {
-      setCurrentAyahIndex((prev) => {
-        // Use refs to get current values (avoid closure issues)
-        const currentAyahsLength = ayahsLengthRef.current;
-        const currentJuz = juzRef.current;
+      const audio           = audioRef.current;
+      if (!audio || !isPlayingRef.current) return;
 
-        // If we've reached the end of the current juz, move to next juz
-        if (prev + 1 >= currentAyahsLength) {
-          if (currentJuz < 30) {
-            changeJuz(currentJuz + 1, {
-              autoAdvance: isPlayingRef.current,
-              resetIndex: false,
-            });
-            return 0;
-          }
+      const nextIndex       = currentIndexRef.current + 1;
+      const allAyahs        = ayahsRef.current;
+      const currentJuz      = juzRef.current;
 
-          setIsPlaying(false);
-          return prev;
+      if (nextIndex < allAyahs.length) {
+        // ── Normal case: advance within the same Juz ────────────────────
+        const nextAyah = allAyahs[nextIndex];
+        if (!nextAyah?.audio) {
+          // Skip ayahs without an audio URL (rare edge case)
+          currentIndexRef.current = nextIndex;
+          setCurrentAyahIndex(nextIndex);
+          return;
         }
-        return prev + 1;
-      });
+        // Load + play immediately — no React re-render required.
+        audio.src = nextAyah.audio;
+        audio.load();
+        audio.play().catch((e) => console.error('Auto-advance play failed', e));
+        // Advance the ref first so the guard in startPlayback sees it.
+        currentIndexRef.current = nextIndex;
+        // Update React state for UI (seek bar, ayah list highlight, etc.).
+        // This is a best-effort update; audio is already playing regardless.
+        setCurrentAyahIndex(nextIndex);
+        setCurrentTime(0);
+        setDuration(0);
+      } else if (currentJuz < 30) {
+        // ── End of Juz: trigger a juz change ───────────────────────
+        // We cannot play the next Juz directly because we don’t have its audio
+        // URLs yet. changeJuz triggers the RTK Query fetch; startPlayback then
+        // handles playback once data arrives.
+        currentIndexRef.current = 0;
+        changeJuz(currentJuz + 1, { autoAdvance: true, resetIndex: true });
+      } else {
+        // End of the entire Quran ────────────────────────────────
+        setIsPlaying(false);
+      }
     };
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Track time updates
     audioRef.current.ontimeupdate = () => {
@@ -163,20 +201,20 @@ export default function QuranPlayer() {
     };
   }, [changeJuz]);
 
-  // Sync state to refs
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
 
-  useEffect(() => {
-    ayahsLengthRef.current = ayahs.length;
-  }, [ayahs.length]);
 
-  useEffect(() => {
-    juzRef.current = juz;
-  }, [juz]);
+  // Sync state to refs (React state is the source-of-truth for UI;
+  // refs are the source-of-truth for audio control).
+  useEffect(() => { isPlayingRef.current    = isPlaying;         }, [isPlaying]);
+  useEffect(() => { ayahsLengthRef.current  = ayahs.length;      }, [ayahs.length]);
+  useEffect(() => { juzRef.current          = juz;               }, [juz]);
+  useEffect(() => { ayahsRef.current        = ayahs;             }, [ayahs]);
+  useEffect(() => { currentIndexRef.current = currentAyahIndex;  }, [currentAyahIndex]);
 
-  // Handle Playback Change
+
+  // Handle Playback Change (user-initiated: play/pause, ayah select, juz change)
+  // This effect handles everything EXCEPT automatic ayah advancement, which is
+  // managed directly in onended via refs to avoid the React render cycle.
   useEffect(() => {
     let isMounted = true;
 
@@ -194,7 +232,7 @@ export default function QuranPlayer() {
 
       const ayah = ayahs[currentAyahIndex];
       if (!ayah || !ayah.audio) {
-        if (!ayah?.audio) console.warn("No audio available for this ayah");
+        if (!ayah?.audio) console.warn('No audio available for this ayah');
         if (isPlaying && currentAyahIndex < ayahs.length - 1) {
           setCurrentAyahIndex((prev) => prev + 1);
         } else {
@@ -205,11 +243,15 @@ export default function QuranPlayer() {
 
       try {
         if (audioRef.current.src !== ayah.audio) {
-          // Reset time and duration state before loading new audio
+          // Src changed — user picked a different ayah or juz changed.
           setCurrentTime(0);
           setDuration(0);
           audioRef.current.src = ayah.audio;
           audioRef.current.load();
+        } else if (!audioRef.current.paused) {
+          // onended already loaded and started this track via refs.
+          // Nothing to do — do not interrupt the playing audio.
+          return;
         }
 
         const playPromise = audioRef.current.play();
@@ -217,9 +259,9 @@ export default function QuranPlayer() {
           await playPromise;
         }
       } catch (error: any) {
-        // Handle AbortError specifically - it's expected during rapid changes
-        if (error.name !== "AbortError" && isMounted) {
-          console.error("Playback failed", error);
+        // AbortError is expected during rapid src changes — ignore it.
+        if (error.name !== 'AbortError' && isMounted) {
+          console.error('Playback failed', error);
           setIsPlaying(false);
         }
       }
@@ -227,10 +269,10 @@ export default function QuranPlayer() {
 
     startPlayback();
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [currentAyahIndex, isPlaying, ayahs, isFetching]);
+
+
 
   // Scroll to current ayah in the list
   useEffect(() => {

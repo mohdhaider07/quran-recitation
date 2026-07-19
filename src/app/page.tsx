@@ -51,9 +51,6 @@ export default function Home() {
 
           <GlassCard className={`p-6 text-sm space-y-3 ${theme.cardBg} ${theme.border}`}>
             <p className={theme.textMuted}>
-              Recitation by Mishary Rashid Alafasy.
-            </p>
-            <p className={theme.textMuted}>
               Select a Juz to begin playback. Adjust ambient sounds to your
               preference.
             </p>

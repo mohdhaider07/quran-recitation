@@ -73,16 +73,11 @@ export default function QuranPlayer() {
   const [showReciterList, setShowReciterList] = useState(false);
   const [showJuzList, setShowJuzList] = useState(false);
 
-  const audiosRef           = useRef<[HTMLAudioElement, HTMLAudioElement] | null>(null);
-  const activeAudioIndexRef = useRef<number>(0);
+  const audioRef           = useRef<HTMLAudioElement | null>(null);
+  const preloadAudioRef    = useRef<HTMLAudioElement | null>(null);
   const ayahListRef         = useRef<HTMLDivElement | null>(null);
   const playerRef           = useRef<HTMLDivElement | null>(null);
   const ayahListButtonRef   = useRef<HTMLButtonElement | null>(null);
-
-  // Helper to get active audio element dynamically
-  const getActiveAudio = () => {
-    return audiosRef.current ? audiosRef.current[activeAudioIndexRef.current] : null;
-  };
 
   // ── Audio control refs ──────────────────────────────────────────────────────
   // All refs that the onended handler reads must live here — never in closure
@@ -133,44 +128,31 @@ export default function QuranPlayer() {
     setReciter(nextReciter);
   }, []);
 
-  // Initialize double-buffered Audio elements
+  // Initialize Audio element and background preloader
   useEffect(() => {
-    const a1 = new Audio();
-    const a2 = new Audio();
+    audioRef.current = new Audio();
+    preloadAudioRef.current = new Audio();
+    preloadAudioRef.current.preload = 'auto';
 
-    a1.preload = "auto";
-    a2.preload = "auto";
-
-    audiosRef.current = [a1, a2];
-
-    const handleTimeUpdate1 = () => {
-      if (activeAudioIndexRef.current === 0) {
-        setCurrentTime(a1.currentTime);
-      }
-    };
-    const handleTimeUpdate2 = () => {
-      if (activeAudioIndexRef.current === 1) {
-        setCurrentTime(a2.currentTime);
+    audioRef.current.ontimeupdate = () => {
+      if (audioRef.current) {
+        setCurrentTime(audioRef.current.currentTime);
       }
     };
 
-    const handleLoadedMetadata1 = () => {
-      if (activeAudioIndexRef.current === 0) {
-        setDuration(a1.duration);
-      }
-    };
-    const handleLoadedMetadata2 = () => {
-      if (activeAudioIndexRef.current === 1) {
-        setDuration(a2.duration);
+    audioRef.current.onloadedmetadata = () => {
+      if (audioRef.current) {
+        setDuration(audioRef.current.duration);
       }
     };
 
-    // ── onended: double buffering swap logic ───────────────────────────────────
-    // When an ayah ends in the background, we immediately play the already-buffered
-    // audio element and schedule preloading of the next track on the idle element.
-    const handleEnded = () => {
-      const audios = audiosRef.current;
-      if (!audios || !isPlayingRef.current) return;
+    // ── onended: transition via cached URL ──────────────────────────────────
+    // When an ayah ends in the background, we immediately change src and play.
+    // Since the next track's URL was preloaded during active playback, it is
+    // loaded instantly from browser cache without needing background network access.
+    audioRef.current.onended = () => {
+      const audio = audioRef.current;
+      if (!audio || !isPlayingRef.current) return;
 
       const nextIndex = currentIndexRef.current + 1;
       const allAyahs = ayahsRef.current;
@@ -184,26 +166,23 @@ export default function QuranPlayer() {
           return;
         }
 
-        const prevActiveIdx = activeAudioIndexRef.current;
-        const nextActiveIdx = 1 - prevActiveIdx;
-        activeAudioIndexRef.current = nextActiveIdx;
-
-        const activeAudio = audios[nextActiveIdx];
-        const preloadAudio = audios[prevActiveIdx];
-
-        // Play the preloaded audio immediately
-        activeAudio.play().catch((e) => console.error('Play preloaded audio failed', e));
+        // Change source and play. Loads instantly from cache.
+        audio.src = nextAyah.audio;
+        audio.load();
+        audio.play().catch((e) => console.error('Background playback transition failed', e));
 
         currentIndexRef.current = nextIndex;
         setCurrentAyahIndex(nextIndex);
         setCurrentTime(0);
         setDuration(0);
 
-        // Preload the track AFTER the next track (nextIndex + 1)
+        // Preload the next-next track immediately
         const preloadIndex = nextIndex + 1;
         if (preloadIndex < allAyahs.length && allAyahs[preloadIndex]?.audio) {
-          preloadAudio.src = allAyahs[preloadIndex].audio;
-          preloadAudio.load();
+          if (preloadAudioRef.current) {
+            preloadAudioRef.current.src = allAyahs[preloadIndex].audio;
+            preloadAudioRef.current.load();
+          }
         }
       } else if (currentJuz < 30) {
         currentIndexRef.current = 0;
@@ -213,23 +192,18 @@ export default function QuranPlayer() {
       }
     };
 
-    a1.ontimeupdate = handleTimeUpdate1;
-    a2.ontimeupdate = handleTimeUpdate2;
-    a1.onloadedmetadata = handleLoadedMetadata1;
-    a2.onloadedmetadata = handleLoadedMetadata2;
-    a1.onended = handleEnded;
-    a2.onended = handleEnded;
-
     return () => {
-      a1.pause();
-      a2.pause();
-      a1.ontimeupdate = null;
-      a2.ontimeupdate = null;
-      a1.onloadedmetadata = null;
-      a2.onloadedmetadata = null;
-      a1.onended = null;
-      a2.onended = null;
-      audiosRef.current = null;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.ontimeupdate = null;
+        audioRef.current.onloadedmetadata = null;
+        audioRef.current.onended = null;
+      }
+      if (preloadAudioRef.current) {
+        preloadAudioRef.current.pause();
+      }
+      audioRef.current = null;
+      preloadAudioRef.current = null;
     };
   }, [changeJuz]);
 
@@ -249,16 +223,12 @@ export default function QuranPlayer() {
     let isMounted = true;
 
     const startPlayback = async () => {
-      const audios = audiosRef.current;
-      if (!audios) return;
-
-      const activeIdx = activeAudioIndexRef.current;
-      const activeAudio = audios[activeIdx];
-      const preloadAudio = audios[1 - activeIdx];
+      const audio = audioRef.current;
+      if (!audio) return;
 
       // Handle pause immediately
       if (!isPlaying) {
-        activeAudio.pause();
+        audio.pause();
         return;
       }
 
@@ -277,35 +247,35 @@ export default function QuranPlayer() {
       }
 
       try {
-        if (activeAudio.src !== ayah.audio) {
+        if (audio.src !== ayah.audio) {
           setCurrentTime(0);
           setDuration(0);
-          activeAudio.src = ayah.audio;
-          activeAudio.load();
-        } else if (!activeAudio.paused) {
-          // Track transition was already handled natively via the ended preloaded swap.
-          // Make sure we preload the next track on the idle element:
+          audio.src = ayah.audio;
+          audio.load();
+        } else if (!audio.paused) {
+          // Track transition was already handled natively via the ended cache swap.
+          // Make sure we preload the next track in the background:
           const nextIdx = currentAyahIndex + 1;
-          if (nextIdx < ayahs.length && ayahs[nextIdx]?.audio) {
-            if (preloadAudio.src !== ayahs[nextIdx].audio) {
-              preloadAudio.src = ayahs[nextIdx].audio;
-              preloadAudio.load();
+          if (nextIdx < ayahs.length && ayahs[nextIdx]?.audio && preloadAudioRef.current) {
+            if (preloadAudioRef.current.src !== ayahs[nextIdx].audio) {
+              preloadAudioRef.current.src = ayahs[nextIdx].audio;
+              preloadAudioRef.current.load();
             }
           }
           return;
         }
 
-        const playPromise = activeAudio.play();
+        const playPromise = audio.play();
         if (playPromise !== undefined) {
           await playPromise;
         }
 
         // Preload the next track immediately after successfully starting playback
         const nextIdx = currentAyahIndex + 1;
-        if (nextIdx < ayahs.length && ayahs[nextIdx]?.audio) {
-          if (preloadAudio.src !== ayahs[nextIdx].audio) {
-            preloadAudio.src = ayahs[nextIdx].audio;
-            preloadAudio.load();
+        if (nextIdx < ayahs.length && ayahs[nextIdx]?.audio && preloadAudioRef.current) {
+          if (preloadAudioRef.current.src !== ayahs[nextIdx].audio) {
+            preloadAudioRef.current.src = ayahs[nextIdx].audio;
+            preloadAudioRef.current.load();
           }
         }
       } catch (error: any) {
@@ -377,10 +347,8 @@ export default function QuranPlayer() {
 
   // Volume & Mute
   useEffect(() => {
-    if (audiosRef.current) {
-      const vol = isMuted ? 0 : volume;
-      audiosRef.current[0].volume = vol;
-      audiosRef.current[1].volume = vol;
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
 
@@ -394,10 +362,9 @@ export default function QuranPlayer() {
   };
 
   const handleSeek = (value: number[]) => {
-    const activeAudio = getActiveAudio();
-    if (activeAudio && duration) {
+    if (audioRef.current && duration) {
       const newTime = (value[0] / 100) * duration;
-      activeAudio.currentTime = newTime;
+      audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
     }
   };
@@ -430,20 +397,18 @@ export default function QuranPlayer() {
   }, [juz, changeJuz]);
 
   const skipForward = useCallback(() => {
-    const activeAudio = getActiveAudio();
-    if (activeAudio) {
-      activeAudio.currentTime = Math.min(
-        activeAudio.currentTime + 10,
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.min(
+        audioRef.current.currentTime + 10,
         duration
       );
     }
   }, [duration]);
 
   const skipBackward = useCallback(() => {
-    const activeAudio = getActiveAudio();
-    if (activeAudio) {
-      activeAudio.currentTime = Math.max(
-        activeAudio.currentTime - 10,
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(
+        audioRef.current.currentTime - 10,
         0
       );
     }
@@ -593,8 +558,7 @@ export default function QuranPlayer() {
               max={duration || 100}
               step={0.1}
               onValueChange={(val) => {
-                const activeAudio = getActiveAudio();
-                if (activeAudio) activeAudio.currentTime = val[0];
+                if (audioRef.current) audioRef.current.currentTime = val[0];
               }}
               className="cursor-pointer"
             />

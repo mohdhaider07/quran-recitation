@@ -64,25 +64,25 @@ export default function AmbianceMixer() {
     <GlassCard className={`p-4 sm:p-6 w-full ${theme.cardBg} ${theme.border}`}>
       <SectionHeader
         title="Nature Sounds"
-        action={
-          hasActiveSounds ? (
-            <IconButton
-              onClick={resetAll}
-              variant="ghost"
-              aria-label="Reset all sounds"
-              title="Reset all"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </IconButton>
-          ) : null
-        }
+        // action={
+        //   hasActiveSounds ? (
+        //     <IconButton
+        //       onClick={resetAll}
+        //       variant="ghost"
+        //       aria-label="Reset all sounds"
+        //       title="Reset all"
+        //     >
+        //       <RotateCcw className="w-4 h-4" />
+        //     </IconButton>
+        //   ) : null
+        // }
         className="mb-4 sm:mb-6"
       />
 
       {/* Quick Presets */}
       <div className="mb-4 sm:mb-6">
        
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
           {PRESETS.map((preset) => (
             <Button
               key={preset.id}
@@ -108,6 +108,31 @@ export default function AmbianceMixer() {
               <span className="text-xs font-medium">{preset.name}</span>
             </Button>
           ))}
+
+          {/* Reset Card - 4th slot */}
+          <Button
+            onClick={hasActiveSounds ? resetAll : undefined}
+            variant="outline"
+            disabled={!hasActiveSounds}
+            className={cn(
+              "h-auto flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-500",
+              hasActiveSounds
+                ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100 hover:border-red-300 hover:text-red-700"
+                : "bg-transparent border-transparent text-gray-300 cursor-not-allowed opacity-50"
+            )}
+          >
+            <div
+              className={cn(
+                "p-2 rounded-lg transition-all",
+                hasActiveSounds
+                  ? "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-400"
+              )}
+            >
+              <RotateCcw className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-medium">Reset</span>
+          </Button>
         </div>
       </div>
 
@@ -166,50 +191,7 @@ export default function AmbianceMixer() {
       {/* Divider */}
       <div className={cn("h-px my-4 sm:my-6 opacity-50", theme.border)} />
 
-      {/* Master Controls */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <IconButton
-            onClick={toggleMute}
-            variant={
-              isMuted ? "danger" : hasActiveSounds ? "brand" : "secondary"
-            }
-            className="p-2.5"
-            aria-label={isMuted ? "Unmute all sounds" : "Mute all sounds"}
-            title={isMuted ? "Unmute" : "Mute"}
-          >
-            {isMuted ? (
-              <VolumeX className="w-5 h-5" />
-            ) : (
-              <Volume2 className="w-5 h-5" />
-            )}
-          </IconButton>
-          <div className="flex-1 space-y-1.5">
-            <div className="flex justify-between items-center">
-              <span className={cn("text-sm font-medium", theme.textMuted)}>
-                Master Volume
-              </span>
-              <span
-                className={cn(
-                  "text-xs tabular-nums font-bold",
-                  isMuted ? "text-red-400" : theme.textAccent
-                )}
-              >
-                {isMuted ? "Muted" : `${Math.round(masterVolume * 100)}%`}
-              </span>
-            </div>
-            <Slider
-              value={[masterVolume]}
-              max={1}
-              step={0.01}
-              onValueChange={(val) => setMasterVolume(val[0])}
-              disabled={isMuted}
-              className={cn("w-full", isMuted && "opacity-50")}
-              aria-label="Master volume"
-            />
-          </div>
-        </div>
-      </div>
+     
     </GlassCard>
   );
 }

@@ -555,23 +555,34 @@ export default function QuranPlayer() {
             </div>
 
             {/* Volume Control */}
-            <div className="flex items-center justify-end gap-3 w-1/4">
-              <div
-                className={cn(
-                  `hidden sm:flex items-center gap-3 rounded-full px-4 py-2 border ${theme.border} ${theme.bgMuted}`
-                )}
+            <div className="flex items-center gap-4 w-full sm:w-auto sm:justify-end">
+              <IconButton
+                onClick={toggleMute}
+                variant={isMuted || volume === 0 ? "danger" : "brand"}
+                className="p-2.5 shrink-0"
+                aria-label={isMuted ? "Unmute" : "Mute"}
+                title={isMuted ? "Unmute" : "Mute"}
               >
-                <IconButton
-                  onClick={toggleMute}
-                  variant="ghost"
-                  className="p-0 h-auto hover:bg-transparent"
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className={`w-4 h-4 ${theme.textMuted} opacity-50`} />
-                  ) : (
-                    <Volume2 className={cn("w-4 h-4", theme.textAccent)} />
-                  )}
-                </IconButton>
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-5 h-5" />
+                ) : (
+                  <Volume2 className="w-5 h-5" />
+                )}
+              </IconButton>
+              <div className="flex-1 sm:w-40 space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className={cn("text-sm font-medium", theme.textMuted)}>
+                    Volume
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs tabular-nums font-bold",
+                      isMuted || volume === 0 ? "text-red-400" : theme.textAccent
+                    )}
+                  >
+                    {isMuted || volume === 0 ? "Muted" : `${Math.round(volume * 100)}%`}
+                  </span>
+                </div>
                 <Slider
                   value={[isMuted ? 0 : volume]}
                   max={1}
@@ -580,10 +591,13 @@ export default function QuranPlayer() {
                     setVolume(val[0]);
                     if (val[0] > 0) setIsMuted(false);
                   }}
-                  className="w-20"
+                  disabled={isMuted}
+                  className={cn("w-full", isMuted && "opacity-50")}
+                  aria-label="Volume"
                 />
               </div>
             </div>
+
           </div>
         </div>
 

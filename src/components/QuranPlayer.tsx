@@ -22,6 +22,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
+import { useMediaSession } from "@/hooks/useMediaSession";
 import React, {
   useState,
   useEffect,
@@ -290,6 +291,8 @@ export default function QuranPlayer() {
     }
   }, [volume, isMuted]);
 
+
+
   const formatTime = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -353,6 +356,31 @@ export default function QuranPlayer() {
   const currentAyah = ayahs[currentAyahIndex];
   const progress = duration ? (currentTime / duration) * 100 : 0;
   const isLoadingState = isFetching;
+
+  // ─── Media Session ────────────────────────────────────────────────────
+  // Registers this player with the OS media framework so Android keeps audio
+  // alive when the screen is locked. All API guards, try/catch, and cleanup
+  // are handled inside useMediaSession — nothing leaks into this component.
+  useMediaSession({
+    metadata: {
+      title:  currentAyah ? `Ayah ${currentAyahIndex + 1}` : 'Holy Quran',
+      artist: currentReciter.name,
+      album:  `Juz ${juz}`,
+    },
+    playbackState: isPlaying ? 'playing' : 'paused',
+    positionState: duration
+      ? { duration, position: Math.min(currentTime, duration), playbackRate: 1 }
+      : null,
+    handlers: {
+      play:          () => setIsPlaying(true),
+      pause:         () => setIsPlaying(false),
+      previoustrack: prevAyah,
+      nexttrack:     nextAyah,
+      seekbackward:  skipBackward,
+      seekforward:   skipForward,
+    },
+  });
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Skeleton loader component
 

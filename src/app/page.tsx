@@ -3,7 +3,6 @@
 import QuranPlayer from "@/components/QuranPlayer";
 import AmbianceMixer from "@/components/AmbianceMixer";
 import { GlassCard } from "@/components/ui/GlassCard";
-import ThemeSwitcher from "@/components/ThemeSwitcher";
 import { useTheme } from "@/hooks/useTheme";
 
 export default function Home() {
@@ -23,8 +22,6 @@ export default function Home() {
           }}
         ></div>
       </div>
-
-      <ThemeSwitcher />
 
       <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
         <div className="lg:col-span-8 flex flex-col gap-8">

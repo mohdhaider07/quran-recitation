@@ -57,7 +57,7 @@ const isMediaSessionSupported =
  * **Why this matters for Android background audio:**
  * When a page has an active Media Session with registered handlers, the Android
  * OS routes its audio through the system's media framework. This is what keeps
- * playback alive when the screen locks — without it, the WebView renderer
+ * playback alive when the screen locks — without it, the browser tab / renderer
  * is treated as a generic background page and its audio pipeline is suspended.
  *
  * **DRY design:**

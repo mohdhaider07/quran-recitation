@@ -31,27 +31,7 @@ import React, {
   useMemo,
 } from "react";
 
-const isReactNative = typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
 
-const sendNativeCommand = (type: string, payload?: any) => {
-  if (typeof window !== 'undefined' && (window as any).ReactNativeWebView) {
-    (window as any).ReactNativeWebView.postMessage(
-      JSON.stringify({ type, payload })
-    );
-  }
-};
-
-if (typeof window !== 'undefined') {
-  (window as any).onNativeAudioEvent = (eventStr: string) => {
-    try {
-      const eventDetail = JSON.parse(eventStr);
-      const event = new CustomEvent('nativeAudioEvent', { detail: eventDetail });
-      window.dispatchEvent(event);
-    } catch (e) {
-      console.error('Failed to parse native audio event:', e);
-    }
-  };
-}
 
 interface Reciter {
   id: string;
@@ -103,8 +83,8 @@ export default function QuranPlayer() {
 
   // ── Audio control refs ──────────────────────────────────────────────────────
   // All refs that the onended handler reads must live here — never in closure
-  // state — so they work correctly when the WebView resumes after being
-  // backgrounded (screen lock, app-switch, etc.).
+  // state — so they work correctly when audio resumes after being
+  // backgrounded (screen lock, tab switch, etc.).
   const isPlayingRef     = useRef(false);
   const ayahsLengthRef   = useRef(0);
   const juzRef           = useRef(1);
@@ -150,43 +130,8 @@ export default function QuranPlayer() {
     setReciter(nextReciter);
   }, []);
 
-  // Initialize Audio element and background preloader or listen to native events
+  // Initialize Audio element and background preloader
   useEffect(() => {
-    if (isReactNative) {
-      const handleNativeEvent = (e: Event) => {
-        const { type, payload } = (e as CustomEvent).detail;
-        switch (type) {
-          case 'SYNC_STATE':
-            if (payload.currentTime !== undefined) setCurrentTime(payload.currentTime);
-            if (payload.duration !== undefined) setDuration(payload.duration);
-            if (payload.isPlaying !== undefined) setIsPlaying(payload.isPlaying);
-            if (payload.currentIndex !== undefined) setCurrentAyahIndex(payload.currentIndex);
-            break;
-          case 'TIME_UPDATE':
-            setCurrentTime(payload.currentTime);
-            break;
-          case 'DURATION_CHANGE':
-            setDuration(payload.duration);
-            break;
-          case 'TRACK_CHANGE':
-            setCurrentAyahIndex(payload.index);
-            break;
-          case 'PLAYBACK_STATUS':
-            setIsPlaying(payload.isPlaying);
-            break;
-        }
-      };
-
-      window.addEventListener('nativeAudioEvent', handleNativeEvent);
-      
-      // Let React Native know we are ready to receive states
-      sendNativeCommand('WEB_READY');
-
-      return () => {
-        window.removeEventListener('nativeAudioEvent', handleNativeEvent);
-      };
-    }
-
     audioRef.current = new Audio();
     preloadAudioRef.current = new Audio();
     preloadAudioRef.current.preload = 'auto';
@@ -277,19 +222,6 @@ export default function QuranPlayer() {
 
   // Handle Playback Change (user-initiated: play/pause, ayah select, juz change)
   useEffect(() => {
-    if (isReactNative) {
-      if (ayahs.length > 0 && !isFetching) {
-        sendNativeCommand('SET_PLAYLIST', {
-          ayahs: ayahs.map(a => ({ audio: a.audio, number: a.number, numberInSurah: a.numberInSurah, surah: a.surah })),
-          currentIndex: currentAyahIndex,
-          isPlaying,
-          volume,
-          isMuted,
-        });
-      }
-      return;
-    }
-
     let isMounted = true;
 
     const startPlayback = async () => {
@@ -322,6 +254,7 @@ export default function QuranPlayer() {
           setDuration(0);
           audio.src = ayah.audio;
           audio.load();
+          
         } else if (!audio.paused) {
           // Track transition was already handled natively via the ended cache swap.
           // Make sure we preload the next track in the background:
@@ -417,10 +350,6 @@ export default function QuranPlayer() {
 
   // Volume & Mute
   useEffect(() => {
-    if (isReactNative) {
-      sendNativeCommand('SET_VOLUME', { volume, isMuted });
-      return;
-    }
     if (audioRef.current) {
       audioRef.current.volume = isMuted ? 0 : volume;
     }
@@ -436,12 +365,6 @@ export default function QuranPlayer() {
   };
 
   const handleSeek = (value: number[]) => {
-    if (isReactNative && duration) {
-      const newTime = (value[0] / 100) * duration;
-      sendNativeCommand('SEEK', { time: newTime });
-      setCurrentTime(newTime);
-      return;
-    }
     if (audioRef.current && duration) {
       const newTime = (value[0] / 100) * duration;
       audioRef.current.currentTime = newTime;
@@ -477,34 +400,22 @@ export default function QuranPlayer() {
   }, [juz, changeJuz]);
 
   const skipForward = useCallback(() => {
-    if (isReactNative) {
-      const newTime = Math.min(currentTime + 10, duration);
-      sendNativeCommand('SEEK', { time: newTime });
-      setCurrentTime(newTime);
-      return;
-    }
     if (audioRef.current) {
       audioRef.current.currentTime = Math.min(
         audioRef.current.currentTime + 10,
         duration
       );
     }
-  }, [duration, currentTime]);
+  }, [duration]);
 
   const skipBackward = useCallback(() => {
-    if (isReactNative) {
-      const newTime = Math.max(currentTime - 10, 0);
-      sendNativeCommand('SEEK', { time: newTime });
-      setCurrentTime(newTime);
-      return;
-    }
     if (audioRef.current) {
       audioRef.current.currentTime = Math.max(
         audioRef.current.currentTime - 10,
         0
       );
     }
-  }, [currentTime]);
+  }, []);
 
   const currentAyah = ayahs[currentAyahIndex];
   const progress = duration ? (currentTime / duration) * 100 : 0;
@@ -650,10 +561,7 @@ export default function QuranPlayer() {
               max={duration || 100}
               step={0.1}
               onValueChange={(val) => {
-                if (isReactNative) {
-                  sendNativeCommand('SEEK', { time: val[0] });
-                  setCurrentTime(val[0]);
-                } else if (audioRef.current) {
+                if (audioRef.current) {
                   audioRef.current.currentTime = val[0];
                 }
               }}

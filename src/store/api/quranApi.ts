@@ -1,21 +1,34 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+export interface Surah {
+  number: number;
+  name: string;
+  englishName: string;
+  englishNameTranslation: string;
+  numberOfAyahs: number;
+  revelationType: string;
+}
+
 export interface Ayah {
   number: number;
   audio: string;
+  audioSecondary?: string[];
   text: string;
   numberInSurah: number;
-  surah: {
-    englishName: string;
-    name: string;
-    number: number;
-  };
+  surah: Surah;
   juz: number;
+  manzil?: number;
+  page?: number;
+  ruku?: number;
+  hizbQuarter?: number;
+  sajda?: boolean | object;
 }
 
 export interface JuzResponse {
   code: number;
+  status?: string;
   data: {
+    number: number;
     ayahs: Ayah[];
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Play,
   Pause,
@@ -8,30 +9,22 @@ import {
   Volume2,
   VolumeX,
   BookOpen,
-  ChevronLeft,
   ChevronRight,
   List,
   Globe,
   X,
+  AlertCircle,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { useGetJuzQuery } from "@/store/api/quranApi";
 import { Slider } from "@/components/ui/slider";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { IconButton } from "@/components/ui/IconButton";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import { useMediaSession } from "@/hooks/useMediaSession";
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
-
-
+import { useQuranAudio } from "@/hooks/useQuranAudio";
 
 interface Reciter {
   id: string;
@@ -45,14 +38,13 @@ const RECITERS: Reciter[] = [
     name: "Abdul Basit (Murattal)",
     language: "Arabic",
   },
-
   { id: "en.walk", name: "Ibrahim Walk", language: "English" },
   { id: "ur.khan", name: "Fateh Muhammad Jalandhari", language: "Urdu" },
 ];
 
 const SkeletonLoader = () => {
   return (
-    <div className="space-y-6 w-full max-w-lg mx-auto animate-fade-in-up">
+    <div className="space-y-6 w-full max-w-lg mx-auto animate-fade-in-up py-8">
       <div className="h-12 rounded-xl animate-shimmer bg-theme-bg-muted" />
       <div className="h-8 rounded-lg w-3/4 mx-auto animate-shimmer bg-theme-bg-muted" />
       <div className="h-6 rounded-full w-1/2 mx-auto animate-shimmer bg-theme-bg-muted" />
@@ -65,424 +57,165 @@ export default function QuranPlayer() {
 
   const [juz, setJuz] = useState(1);
   const [reciter, setReciter] = useState(RECITERS[0].id);
-  const [currentAyahIndex, setCurrentAyahIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+
   const [showAyahList, setShowAyahList] = useState(false);
   const [showReciterList, setShowReciterList] = useState(false);
   const [showJuzList, setShowJuzList] = useState(false);
 
-  const audioRef           = useRef<HTMLAudioElement | null>(null);
-  const preloadAudioRef    = useRef<HTMLAudioElement | null>(null);
-  const ayahListRef         = useRef<HTMLDivElement | null>(null);
-  const playerRef           = useRef<HTMLDivElement | null>(null);
-  const ayahListButtonRef   = useRef<HTMLButtonElement | null>(null);
+  const ayahListRef = useRef<HTMLDivElement | null>(null);
 
-  // ── Audio control refs ──────────────────────────────────────────────────────
-  // All refs that the onended handler reads must live here — never in closure
-  // state — so they work correctly when audio resumes after being
-  // backgrounded (screen lock, tab switch, etc.).
-  const isPlayingRef     = useRef(false);
-  const ayahsLengthRef   = useRef(0);
-  const juzRef           = useRef(1);
-  /** Full list of ayahs with their audio URLs for the current Juz. */
-  const ayahsRef         = useRef<typeof ayahs>([]);
-  /** The index that the audio element is *actually* playing (may lead React state). */
-  const currentIndexRef  = useRef(0);
-
-
-  const currentReciter = RECITERS.find((r) => r.id === reciter) || RECITERS[0];
-  const { data, isFetching, isError } = useGetJuzQuery({ juz, reciter });
-  const ayahs = useMemo(() => data?.data.ayahs ?? [], [data]);
-
-  const changeJuz = useCallback(
-    (
-      nextJuz: number,
-      options?: { autoAdvance?: boolean; resetIndex?: boolean }
-    ) => {
-      const { autoAdvance = true, resetIndex = true } = options ?? {};
-
-      // Reset time and duration instantly when switching Juz
-      setCurrentTime(0);
-      setDuration(0);
-
-      if (autoAdvance) {
-        setIsPlaying(true);
-      }
-
-      if (resetIndex) {
-        setCurrentAyahIndex(0);
-      }
-
-      setJuz(nextJuz);
-    },
-    []
+  const currentReciter = useMemo(
+    () => RECITERS.find((r) => r.id === reciter) || RECITERS[0],
+    [reciter]
   );
 
-  const changeReciter = useCallback((nextReciter: string) => {
-    setIsPlaying(true); // Autoplay on reciter change too
-    setCurrentAyahIndex(0);
-    setCurrentTime(0);
-    setDuration(0);
-    setReciter(nextReciter);
-  }, []);
+  const { data, isFetching, isError, refetch } = useGetJuzQuery({ juz, reciter });
+  const ayahs = useMemo(() => data?.data?.ayahs ?? [], [data]);
 
-  // Initialize Audio element and background preloader
-  useEffect(() => {
-    audioRef.current = new Audio();
-    preloadAudioRef.current = new Audio();
-    preloadAudioRef.current.preload = 'auto';
+  const handleNextJuz = useCallback(() => {
+    if (juz < 30) {
+      setJuz((prev) => prev + 1);
+    }
+  }, [juz]);
 
-    audioRef.current.ontimeupdate = () => {
-      if (audioRef.current) {
-        setCurrentTime(audioRef.current.currentTime);
-      }
-    };
+  const {
+    currentAyahIndex,
+    currentAyah,
+    isPlaying,
+    isAudioLoading,
+    audioError,
+    currentTime,
+    duration,
+    volume,
+    isMuted,
+    togglePlay,
+    selectAyah,
+    nextAyah,
+    prevAyah,
+    seekTo,
+    setVolume,
+    toggleMute,
+    resetIndex,
+    setIsPlaying,
+  } = useQuranAudio({
+    ayahs,
+    juz,
+    reciterName: currentReciter.name,
+    isFetching,
+    onNextJuz: handleNextJuz,
+  });
 
-    audioRef.current.onloadedmetadata = () => {
-      if (audioRef.current) {
-        setDuration(audioRef.current.duration);
-      }
-    };
+  const changeJuz = useCallback(
+    (nextJuz: number) => {
+      setJuz(nextJuz);
+      resetIndex();
+      setIsPlaying(true);
+    },
+    [resetIndex, setIsPlaying]
+  );
 
-    // ── onended: transition via cached URL ──────────────────────────────────
-    // When an ayah ends in the background, we immediately change src and play.
-    // Since the next track's URL was preloaded during active playback, it is
-    // loaded instantly from browser cache without needing background network access.
-    audioRef.current.onended = () => {
-      const audio = audioRef.current;
-      if (!audio || !isPlayingRef.current) return;
+  const changeReciter = useCallback(
+    (nextReciter: string) => {
+      setReciter(nextReciter);
+      resetIndex();
+      setIsPlaying(true);
+    },
+    [resetIndex, setIsPlaying]
+  );
 
-      const nextIndex = currentIndexRef.current + 1;
-      const allAyahs = ayahsRef.current;
-      const currentJuz = juzRef.current;
-
-      if (nextIndex < allAyahs.length) {
-        const nextAyah = allAyahs[nextIndex];
-        if (!nextAyah?.audio) {
-          currentIndexRef.current = nextIndex;
-          setCurrentAyahIndex(nextIndex);
-          return;
-        }
-
-        // Change source and play. Loads instantly from cache.
-        audio.src = nextAyah.audio;
-        audio.load();
-        audio.play().catch((e) => console.error('Background playback transition failed', e));
-
-        currentIndexRef.current = nextIndex;
-        setCurrentAyahIndex(nextIndex);
-        setCurrentTime(0);
-        setDuration(0);
-
-        // Preload the next-next track immediately
-        const preloadIndex = nextIndex + 1;
-        if (preloadIndex < allAyahs.length && allAyahs[preloadIndex]?.audio) {
-          if (preloadAudioRef.current) {
-            preloadAudioRef.current.src = allAyahs[preloadIndex].audio;
-            preloadAudioRef.current.load();
-          }
-        }
-      } else if (currentJuz < 30) {
-        currentIndexRef.current = 0;
-        changeJuz(currentJuz + 1, { autoAdvance: true, resetIndex: true });
-      } else {
-        setIsPlaying(false);
-      }
-    };
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.ontimeupdate = null;
-        audioRef.current.onloadedmetadata = null;
-        audioRef.current.onended = null;
-      }
-      if (preloadAudioRef.current) {
-        preloadAudioRef.current.pause();
-      }
-      audioRef.current = null;
-      preloadAudioRef.current = null;
-    };
-  }, [changeJuz]);
-
-
-
-  // Sync state to refs (React state is the source-of-truth for UI;
-  // refs are the source-of-truth for audio control).
-  useEffect(() => { isPlayingRef.current    = isPlaying;         }, [isPlaying]);
-  useEffect(() => { ayahsLengthRef.current  = ayahs.length;      }, [ayahs.length]);
-  useEffect(() => { juzRef.current          = juz;               }, [juz]);
-  useEffect(() => { ayahsRef.current        = ayahs;             }, [ayahs]);
-  useEffect(() => { currentIndexRef.current = currentAyahIndex;  }, [currentAyahIndex]);
-
-
-  // Handle Playback Change (user-initiated: play/pause, ayah select, juz change)
-  useEffect(() => {
-    let isMounted = true;
-
-    const startPlayback = async () => {
-      const audio = audioRef.current;
-      if (!audio) return;
-
-      // Handle pause immediately
-      if (!isPlaying) {
-        audio.pause();
-        return;
-      }
-
-      // Wait if data is still loading
-      if (ayahs.length === 0 || isFetching) return;
-
-      const ayah = ayahs[currentAyahIndex];
-      if (!ayah || !ayah.audio) {
-        if (!ayah?.audio) console.warn('No audio available for this ayah');
-        if (isPlaying && currentAyahIndex < ayahs.length - 1) {
-          setCurrentAyahIndex((prev) => prev + 1);
-        } else {
-          setIsPlaying(false);
-        }
-        return;
-      }
-
-      try {
-        if (audio.src !== ayah.audio) {
-          setCurrentTime(0);
-          setDuration(0);
-          audio.src = ayah.audio;
-          audio.load();
-          
-        } else if (!audio.paused) {
-          // Track transition was already handled natively via the ended cache swap.
-          // Make sure we preload the next track in the background:
-          const nextIdx = currentAyahIndex + 1;
-          if (nextIdx < ayahs.length && ayahs[nextIdx]?.audio && preloadAudioRef.current) {
-            if (preloadAudioRef.current.src !== ayahs[nextIdx].audio) {
-              preloadAudioRef.current.src = ayahs[nextIdx].audio;
-              preloadAudioRef.current.load();
-            }
-          }
-          return;
-        }
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          await playPromise;
-        }
-
-        // Preload the next track immediately after successfully starting playback
-        const nextIdx = currentAyahIndex + 1;
-        if (nextIdx < ayahs.length && ayahs[nextIdx]?.audio && preloadAudioRef.current) {
-          if (preloadAudioRef.current.src !== ayahs[nextIdx].audio) {
-            preloadAudioRef.current.src = ayahs[nextIdx].audio;
-            preloadAudioRef.current.load();
-          }
-        }
-      } catch (error: any) {
-        if (error.name !== 'AbortError' && isMounted) {
-          console.error('Playback failed', error);
-          setIsPlaying(false);
-        }
-      }
-    };
-
-    startPlayback();
-
-    return () => { isMounted = false; };
-  }, [currentAyahIndex, isPlaying, ayahs, isFetching, volume, isMuted]);
-
-
-
-  // Scroll to current ayah in the list
+  // Scroll to current ayah in the list modal when opened
   useEffect(() => {
     if (showAyahList && ayahListRef.current) {
-      const activeItem = ayahListRef.current.querySelector(
-        '[data-active="true"]'
-      );
-      if (activeItem) {
-        activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+      const timer = setTimeout(() => {
+        const activeItem = ayahListRef.current?.querySelector('[data-active="true"]');
+        if (activeItem) {
+          activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [currentAyahIndex, showAyahList]);
 
-  // Close panels when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node;
+  const openReciterList = useCallback(() => {
+    setShowJuzList(false);
+    setShowAyahList(false);
+    setShowReciterList(true);
+  }, []);
 
-      // Close ayah list panel if clicking outside
-      if (showAyahList && ayahListRef.current && ayahListButtonRef.current) {
-        if (
-          !ayahListRef.current.contains(target) &&
-          !ayahListButtonRef.current.contains(target)
-        ) {
-          setShowAyahList(false);
-        }
-      }
-    };
+  const openJuzList = useCallback(() => {
+    setShowReciterList(false);
+    setShowAyahList(false);
+    setShowJuzList(true);
+  }, []);
 
-    // Only add listener if at least one panel is open
-    if (showAyahList) {
-      document.addEventListener(
-        "mousedown",
-        handleClickOutside as EventListener
-      );
-      document.addEventListener(
-        "touchstart",
-        handleClickOutside as EventListener
-      );
-    }
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside as EventListener
-      );
-      document.removeEventListener(
-        "touchstart",
-        handleClickOutside as EventListener
-      );
-    };
-  }, [showAyahList]);
-
-  // Volume & Mute
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-    }
-  }, [volume, isMuted]);
-
-
+  const openAyahList = useCallback(() => {
+    setShowReciterList(false);
+    setShowJuzList(false);
+    setShowAyahList(true);
+  }, []);
 
   const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return "0:00";
+    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleSeek = (value: number[]) => {
-    if (audioRef.current && duration) {
-      const newTime = (value[0] / 100) * duration;
-      audioRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
-    }
-  };
-
-  const selectAyah = (index: number) => {
-    setCurrentAyahIndex(index);
-    if (!isPlaying) {
-      setIsPlaying(true);
-    }
-  };
-
-  const togglePlay = useCallback(() => setIsPlaying((prev) => !prev), []);
-  const toggleMute = useCallback(() => setIsMuted((prev) => !prev), []);
-
-  const nextAyah = useCallback(() => {
-    if (currentAyahIndex < ayahs.length - 1)
-      setCurrentAyahIndex((prev) => prev + 1);
-  }, [currentAyahIndex, ayahs.length]);
-
-  const prevAyah = useCallback(() => {
-    if (currentAyahIndex > 0) setCurrentAyahIndex((prev) => prev - 1);
-  }, [currentAyahIndex]);
-
-  const nextJuz = useCallback(() => {
-    if (juz < 30) changeJuz(juz + 1);
-  }, [juz, changeJuz]);
-
-  const prevJuz = useCallback(() => {
-    if (juz > 1) changeJuz(juz - 1);
-  }, [juz, changeJuz]);
-
-  const skipForward = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = Math.min(
-        audioRef.current.currentTime + 10,
-        duration
-      );
-    }
-  }, [duration]);
-
-  const skipBackward = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = Math.max(
-        audioRef.current.currentTime - 10,
-        0
-      );
-    }
-  }, []);
-
-  const currentAyah = ayahs[currentAyahIndex];
-  const progress = duration ? (currentTime / duration) * 100 : 0;
-  const isLoadingState = isFetching;
-
-  // ─── Media Session ────────────────────────────────────────────────────
-  // Registers this player with the OS media framework so Android keeps audio
-  // alive when the screen is locked. All API guards, try/catch, and cleanup
-  // are handled inside useMediaSession — nothing leaks into this component.
-  useMediaSession({
-    metadata: {
-      title:  currentAyah ? `Ayah ${currentAyahIndex + 1}` : 'Holy Quran',
-      artist: currentReciter.name,
-      album:  `Juz ${juz}`,
-    },
-    playbackState: isPlaying ? 'playing' : 'paused',
-    positionState: duration
-      ? { duration, position: Math.min(currentTime, duration), playbackRate: 1 }
-      : null,
-    handlers: {
-      play:          () => setIsPlaying(true),
-      pause:         () => setIsPlaying(false),
-      previoustrack: prevAyah,
-      nexttrack:     nextAyah,
-      seekbackward:  skipBackward,
-      seekforward:   skipForward,
-    },
-  });
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Skeleton loader component
-
   return (
     <div className="flex flex-col gap-6 sm:gap-8">
-      <GlassCard className={`flex flex-col min-h-125 overflow-hidden group ${theme.cardBg} ${theme.border}`}>
+      <GlassCard className={`relative flex flex-col min-h-125 overflow-hidden group ${theme.cardBg} ${theme.border}`}>
         <div className="p-4 sm:p-6 md:p-8 flex flex-col items-center grow">
-          <SectionHeader
-            title="Holy Quran"
-            className="w-full mb-6 sm:mb-8"
-          />
+          <SectionHeader title="Holy Quran" className="w-full mb-6 sm:mb-8" />
 
-          {isFetching ? (
+          {/* Error Banner when API load fails */}
+          {isError ? (
+            <div className="grow flex flex-col items-center justify-center w-full p-6 text-center space-y-4">
+              <div className="p-3 rounded-full bg-red-500/10 text-red-500">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                  Failed to load Juz {juz} recitations
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+                  Please check your internet connection and try again.
+                </p>
+              </div>
+              <button
+                onClick={() => refetch()}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-md active:scale-95"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            </div>
+          ) : isFetching ? (
             <div className="grow flex items-center justify-center w-full">
               <SkeletonLoader />
             </div>
           ) : (
-            <div className="flex flex-col w-full animate-fade-in-up">
+            <div className="flex flex-col w-full animate-fade-in-up gap-6">
+             
+
               {/* Selection Trigger Buttons */}
               <div className="flex flex-col gap-3 w-full">
-                
                 {/* Reciter Trigger */}
                 <button
-                  onClick={() => setShowReciterList(true)}
+                  onClick={openReciterList}
                   className={cn(
                     "w-full p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
                     "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
-                    "border-teal-100 hover:border-teal-300 hover:shadow-md"
+                    "border-teal-100 hover:border-teal-300 hover:shadow-md dark:bg-slate-900/40 dark:border-slate-800"
                   )}
                 >
-                  <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 shadow-sm border border-teal-100/50">
+                  <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 shadow-sm border border-teal-100/50 dark:border-teal-900/40">
                     <Globe className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col text-left flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 dark:text-teal-400/80">
                       Reciter
                     </span>
-                    <span className="text-sm font-bold text-slate-800">
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                       {currentReciter.name}
                     </span>
                   </div>
@@ -491,21 +224,21 @@ export default function QuranPlayer() {
 
                 {/* Juz Trigger */}
                 <button
-                  onClick={() => setShowJuzList(true)}
+                  onClick={openJuzList}
                   className={cn(
                     "w-full p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
                     "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
-                    "border-teal-100 hover:border-teal-300 hover:shadow-md"
+                    "border-teal-100 hover:border-teal-300 hover:shadow-md dark:bg-slate-900/40 dark:border-slate-800"
                   )}
                 >
-                  <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 shadow-sm border border-teal-100/50">
+                  <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 shadow-sm border border-teal-100/50 dark:border-teal-900/40">
                     <BookOpen className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col text-left flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 dark:text-teal-400/80">
                       Juz
                     </span>
-                    <span className="text-sm font-bold text-slate-800">
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                       Juz {juz}
                     </span>
                   </div>
@@ -514,33 +247,32 @@ export default function QuranPlayer() {
 
                 {/* Ayat Trigger */}
                 <button
-                  onClick={() => setShowAyahList(true)}
+                  onClick={openAyahList}
                   className={cn(
                     "w-full p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
                     "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
-                    "border-teal-100 hover:border-teal-300 hover:shadow-md"
+                    "border-teal-100 hover:border-teal-300 hover:shadow-md dark:bg-slate-900/40 dark:border-slate-800"
                   )}
                 >
-                  <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 shadow-sm border border-teal-100/50">
+                  <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 shadow-sm border border-teal-100/50 dark:border-teal-900/40">
                     <List className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col text-left flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 dark:text-teal-400/80">
                       Ayat
                     </span>
-                    <span className="text-sm font-bold text-slate-800">
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                       {ayahs.length} verses • Playing Ayah {currentAyahIndex + 1}
                     </span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-teal-400" />
                 </button>
-
               </div>
             </div>
           )}
         </div>
 
-        {/* Main Player Bar */}
+        {/* Main Player Controls Bar */}
         <div
           className={cn(
             `relative mt-auto border-t ${theme.border} transition-all duration-500 ${theme.bgMuted}`
@@ -560,28 +292,26 @@ export default function QuranPlayer() {
               value={[currentTime]}
               max={duration || 100}
               step={0.1}
-              onValueChange={(val) => {
-                if (audioRef.current) {
-                  audioRef.current.currentTime = val[0];
-                }
-              }}
+              onValueChange={(val) => seekTo(val[0])}
               className="cursor-pointer"
             />
           </div>
 
           {/* Controls Layout */}
           <div className="px-6 pb-8 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-0">
-            {/* Audio Visualization Replacement / Info */}
+            {/* Reciter Status / Audio Visualization */}
             <div className="hidden sm:flex items-center gap-3 w-1/4">
               <div
                 className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
                   isPlaying
-                    ? `bg-linear-to-br ${theme.primary} text-white shadow-lg animate-pulse`
+                    ? `bg-gradient-to-br ${theme.primary} text-white shadow-lg animate-pulse`
                     : `${theme.bgMuted} ${theme.textMuted}`
                 )}
               >
-                {isPlaying ? (
+                {isAudioLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : isPlaying ? (
                   <Volume2 className="w-5 h-5" />
                 ) : (
                   <VolumeX className="w-5 h-5" />
@@ -607,13 +337,11 @@ export default function QuranPlayer() {
               </div>
             </div>
 
-            {/* Player Core Controls */}
+            {/* Core Controls: Prev / Play / Next */}
             <div className="flex items-center gap-4 sm:gap-8">
               <IconButton
-                onClick={() =>
-                  setCurrentAyahIndex((prev) => Math.max(0, prev - 1))
-                }
-                disabled={currentAyahIndex === 0}
+                onClick={prevAyah}
+                disabled={currentAyahIndex === 0 && juz === 1}
                 variant="secondary"
                 className="w-10 h-10 sm:w-12 sm:h-12"
               >
@@ -622,12 +350,15 @@ export default function QuranPlayer() {
 
               <button
                 onClick={togglePlay}
+                disabled={isFetching || ayahs.length === 0}
                 className={cn(
-                  "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 shadow-xl",
-                  `bg-linear-to-r ${theme.primary} text-white shadow-theme-primary`
+                  "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 shadow-xl disabled:opacity-50 disabled:pointer-events-none",
+                  `bg-gradient-to-r ${theme.primary} text-white shadow-theme-primary`
                 )}
               >
-                {isPlaying ? (
+                {isAudioLoading ? (
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                ) : isPlaying ? (
                   <Pause className="w-8 h-8 fill-current" />
                 ) : (
                   <Play className="w-8 h-8 fill-current ml-1" />
@@ -635,12 +366,8 @@ export default function QuranPlayer() {
               </button>
 
               <IconButton
-                onClick={() =>
-                  setCurrentAyahIndex((prev) =>
-                    Math.min(ayahs.length - 1, prev + 1)
-                  )
-                }
-                disabled={currentAyahIndex === ayahs.length - 1}
+                onClick={nextAyah}
+                disabled={currentAyahIndex === ayahs.length - 1 && juz === 30}
                 variant="secondary"
                 className="w-10 h-10 sm:w-12 sm:h-12"
               >
@@ -681,25 +408,21 @@ export default function QuranPlayer() {
                   value={[isMuted ? 0 : volume]}
                   max={1}
                   step={0.01}
-                  onValueChange={(val) => {
-                    setVolume(val[0]);
-                    if (val[0] > 0) setIsMuted(false);
-                  }}
+                  onValueChange={(val) => setVolume(val[0])}
                   disabled={isMuted}
                   className={cn("w-full", isMuted && "opacity-50")}
                   aria-label="Volume"
                 />
               </div>
             </div>
-
           </div>
         </div>
 
-        {/* Slide-up Reciter List Overlay */}
+        {/* Reciter Selector Drawer Overlay */}
         <div
           className={cn(
-            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-theme-card/95",
-            showReciterList ? "translate-y-0" : "translate-y-full"
+            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 shadow-2xl",
+            showReciterList ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
           )}
         >
           <div
@@ -743,16 +466,20 @@ export default function QuranPlayer() {
                   <Globe className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className={cn(
-                    "text-base font-semibold",
-                    reciter === r.id ? "text-white" : theme.text
-                  )}>
+                  <span
+                    className={cn(
+                      "text-base font-semibold",
+                      reciter === r.id ? "text-white" : theme.text
+                    )}
+                  >
                     {r.name}
                   </span>
-                  <span className={cn(
-                    "text-xs",
-                    reciter === r.id ? "text-white/80" : theme.textMuted
-                  )}>
+                  <span
+                    className={cn(
+                      "text-xs",
+                      reciter === r.id ? "text-white/80" : theme.textMuted
+                    )}
+                  >
                     {r.language}
                   </span>
                 </div>
@@ -761,11 +488,11 @@ export default function QuranPlayer() {
           </div>
         </div>
 
-        {/* Slide-up Juz List Overlay */}
+        {/* Juz Selector Drawer Overlay */}
         <div
           className={cn(
-            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-theme-card/95",
-            showJuzList ? "translate-y-0" : "translate-y-full"
+            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 shadow-2xl",
+            showJuzList ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
           )}
         >
           <div
@@ -809,16 +536,20 @@ export default function QuranPlayer() {
                   {juzNum}
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className={cn(
-                    "text-base font-semibold",
-                    juz === juzNum ? "text-white" : theme.text
-                  )}>
+                  <span
+                    className={cn(
+                      "text-base font-semibold",
+                      juz === juzNum ? "text-white" : theme.text
+                    )}
+                  >
                     Juz {juzNum}
                   </span>
-                  <span className={cn(
-                    "text-xs",
-                    juz === juzNum ? "text-white/80" : theme.textMuted
-                  )}>
+                  <span
+                    className={cn(
+                      "text-xs",
+                      juz === juzNum ? "text-white/80" : theme.textMuted
+                    )}
+                  >
                     Para {juzNum}
                   </span>
                 </div>
@@ -827,12 +558,12 @@ export default function QuranPlayer() {
           </div>
         </div>
 
-        {/* Slide-up Ayah List Overlay */}
+        {/* Ayat List Drawer Overlay */}
         <div
           ref={ayahListRef}
           className={cn(
-            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-theme-card/95",
-            showAyahList ? "translate-y-0" : "translate-y-full"
+            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 shadow-2xl",
+            showAyahList ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
           )}
         >
           <div
@@ -853,16 +584,20 @@ export default function QuranPlayer() {
           <div className="grow overflow-y-auto">
             {ayahs.map((ayah, index) => (
               <button
-                key={ayah.number}
-                onClick={() => selectAyah(index)}
+                key={ayah.number || index}
+                data-active={index === currentAyahIndex}
+                onClick={() => {
+                  selectAyah(index);
+                  setShowAyahList(false);
+                }}
                 className={cn(
                   "w-full text-right p-4 transition-all flex items-center gap-3 focus-ring",
                   index === currentAyahIndex
-                    ? `bg-linear-to-r ${theme.primary} text-white`
+                    ? `bg-gradient-to-r ${theme.primary} text-white`
                     : `hover:${theme.bgMuted} border-y border-transparent ${theme.text}`
                 )}
               >
-                {/* Playing indicator */}
+                {/* Playing indicator / Index */}
                 <div
                   className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
@@ -908,7 +643,7 @@ export default function QuranPlayer() {
                         : theme.textMuted
                     )}
                   >
-                    Ayah {index + 1}
+                    Ayah {index + 1} • {ayah.surah?.englishName || ""}
                   </p>
                 </div>
               </button>

@@ -26,11 +26,10 @@ export function useQuranAudio({
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
 
-  // Core audio refs
+  // Single HTMLAudioElement reference for pure media session stability
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Source-of-truth refs for callbacks / background event handlers
+  // Source-of-truth refs for callbacks & background event handlers
   const isPlayingRef = useRef(isPlaying);
   const currentIndexRef = useRef(currentAyahIndex);
   const ayahsRef = useRef(ayahs);
@@ -38,7 +37,7 @@ export function useQuranAudio({
   const fallbackIndexRef = useRef(0);
   const onNextJuzRef = useRef(onNextJuz);
 
-  // Sync state to refs synchronously
+  // Keep refs in sync synchronously
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
@@ -78,33 +77,36 @@ export function useQuranAudio({
     return sources;
   }, []);
 
-  // Preload next track audio source
-  const preloadNextTrack = useCallback(
-    (nextIdx: number) => {
-      const nextAyah = ayahsRef.current[nextIdx];
-      const sources = getAudioSources(nextAyah);
-      if (sources.length > 0 && preloadAudioRef.current) {
-        if (preloadAudioRef.current.src !== sources[0]) {
-          preloadAudioRef.current.src = sources[0];
-          preloadAudioRef.current.load();
-        }
-      }
-    },
-    [getAudioSources]
-  );
-
-  // Function to advance to next track (internal or manual)
+  // Advance to next track (internal or manual trigger)
   const advanceToNext = useCallback(() => {
+    const audio = audioRef.current;
     const nextIdx = currentIndexRef.current + 1;
     const total = ayahsRef.current.length;
+
     if (nextIdx < total) {
       fallbackIndexRef.current = 0;
+      const nextAyah = ayahsRef.current[nextIdx];
+      const sources = getAudioSources(nextAyah);
+
+      if (audio && sources.length > 0 && isPlayingRef.current) {
+        const nextSrc = sources[0];
+        audio.src = nextSrc;
+        audio.load();
+        audio.play().catch((err) => {
+          if (err.name !== "AbortError") {
+            console.error("Lockscreen transition play error:", err);
+          }
+        });
+      }
+
+      currentIndexRef.current = nextIdx;
       setCurrentAyahIndex(nextIdx);
       setCurrentTime(0);
       setDuration(0);
       setAudioError(null);
     } else if (juzRef.current < 30) {
       fallbackIndexRef.current = 0;
+      currentIndexRef.current = 0;
       setCurrentAyahIndex(0);
       setCurrentTime(0);
       setDuration(0);
@@ -115,16 +117,41 @@ export function useQuranAudio({
     } else {
       setIsPlaying(false);
     }
-  }, []);
+  }, [getAudioSources]);
+
+  // Request Screen WakeLock during playback to prevent screen dimming/locking
+  useEffect(() => {
+    let wakeLock: any = null;
+
+    const requestWakeLock = async () => {
+      if (
+        isPlaying &&
+        typeof window !== "undefined" &&
+        "wakeLock" in navigator &&
+        typeof (navigator as any).wakeLock?.request === "function"
+      ) {
+        try {
+          wakeLock = await (navigator as any).wakeLock.request("screen");
+        } catch (err) {
+          // Wake lock not granted or supported
+        }
+      }
+    };
+
+    requestWakeLock();
+
+    return () => {
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
+    };
+  }, [isPlaying]);
 
   // Initialize HTMLAudioElement and event listeners
   useEffect(() => {
     const audio = new Audio();
-    const preloadAudio = new Audio();
-    preloadAudio.preload = "auto";
-
     audioRef.current = audio;
-    preloadAudioRef.current = preloadAudio;
 
     audio.ontimeupdate = () => {
       if (audioRef.current) {
@@ -158,7 +185,6 @@ export function useQuranAudio({
       const activeAyah = ayahsRef.current[currentIndexRef.current];
       const sources = getAudioSources(activeAyah);
 
-      // Check if we have secondary fallback URLs to try
       if (fallbackIndexRef.current + 1 < sources.length) {
         fallbackIndexRef.current += 1;
         const fallbackUrl = sources[fallbackIndexRef.current];
@@ -176,12 +202,10 @@ export function useQuranAudio({
           });
         }
       } else {
-        // All audio sources for this Ayah failed
         const errMsg = `Audio stream unavailable for Ayah ${currentIndexRef.current + 1}`;
         console.error(errMsg);
         setAudioError(errMsg);
 
-        // Auto advance after short delay if currently playing
         if (isPlayingRef.current && currentIndexRef.current < ayahsRef.current.length - 1) {
           setTimeout(() => {
             if (isPlayingRef.current) advanceToNext();
@@ -201,10 +225,7 @@ export function useQuranAudio({
       audio.onended = null;
       audio.onerror = null;
 
-      preloadAudio.pause();
-
       audioRef.current = null;
-      preloadAudioRef.current = null;
     };
   }, [advanceToNext, getAudioSources]);
 
@@ -223,13 +244,11 @@ export function useQuranAudio({
       const audio = audioRef.current;
       if (!audio) return;
 
-      // Handle pause request
       if (!isPlaying) {
         audio.pause();
         return;
       }
 
-      // Wait if data is loading or empty
       if (isFetching || ayahs.length === 0) {
         return;
       }
@@ -264,15 +283,12 @@ export function useQuranAudio({
         if (!isCancelled) {
           setIsAudioLoading(false);
           setAudioError(null);
-          // Preload next track
-          preloadNextTrack(currentAyahIndex + 1);
         }
       } catch (err: any) {
         if (isCancelled || err.name === "AbortError") return;
         console.error("Playback execution error:", err);
         setIsAudioLoading(false);
 
-        // Try fallback audio if available
         if (fallbackIndexRef.current + 1 < sources.length) {
           fallbackIndexRef.current += 1;
           const fallbackUrl = sources[fallbackIndexRef.current];
@@ -280,8 +296,7 @@ export function useQuranAudio({
           audio.load();
           audio.play().catch(() => {});
         } else {
-          setAudioError("Playback failed to start.");
-          setIsPlaying(false);
+          setAudioError("Buffering recitation...");
         }
       }
     };
@@ -291,7 +306,7 @@ export function useQuranAudio({
     return () => {
       isCancelled = true;
     };
-  }, [currentAyahIndex, isPlaying, ayahs, isFetching, getAudioSources, preloadNextTrack]);
+  }, [currentAyahIndex, isPlaying, ayahs, isFetching, getAudioSources]);
 
   // Controls API
   const togglePlay = useCallback(() => {

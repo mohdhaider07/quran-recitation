@@ -100,6 +100,7 @@ export default function QuranPlayer() {
   } = useQuranAudio({
     ayahs,
     juz,
+    reciterId: reciter,
     reciterName: currentReciter.name,
     isFetching,
     onNextJuz: handleNextJuz,

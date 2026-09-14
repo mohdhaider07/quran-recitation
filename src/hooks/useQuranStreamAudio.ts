@@ -27,8 +27,8 @@ export interface JuzMetadataResponse {
   ayahs: AyahTiming[];
 }
 
-// Client-side cache to avoid re-fetching metadata across Juz switches
-const metadataCache = new Map<number, JuzMetadataResponse>();
+// Client-side cache to avoid re-fetching metadata across Juz & Reciter switches
+const metadataCache = new Map<string, JuzMetadataResponse>();
 
 export function useQuranStreamAudio(options: UseQuranStreamAudioOptions = {}) {
   const { initialJuz = 1, initialReciterId = 1 } = options;
@@ -166,12 +166,13 @@ export function useQuranStreamAudio(options: UseQuranStreamAudioOptions = {}) {
       setError(null);
       setCurrentTime(0);
       try {
-        let meta = metadataCache.get(juz);
+        const cacheKey = `${juz}_${reciterId}`;
+        let meta = metadataCache.get(cacheKey);
         if (!meta) {
           const res = await fetch(`/api/juz-metadata?juz=${juz}&reciter=${reciterId}`);
           if (res.ok) {
             meta = (await res.json()) as JuzMetadataResponse;
-            metadataCache.set(juz, meta);
+            metadataCache.set(cacheKey, meta);
           }
         }
 

@@ -58,17 +58,35 @@ export async function loadJuzMetadata(): Promise<Record<string, JuzStaticData>> 
 }
 
 /**
- * Resolves the static metadata for a given Juz.
+ * Resolves the static metadata for a given Juz and Reciter.
  */
 export async function getJuzStaticMetadata(
   juz: number,
-  _reciterParam?: string | number | null
+  reciterParam?: string | number | null
 ): Promise<JuzStaticData | null> {
   const allData = await loadJuzMetadata();
-  const data = allData[juz] || allData[juz.toString()];
-  if (data && data.totalSize > 0) {
-    return data;
+  const reciter = resolveReciter(reciterParam);
+
+  // 1. Try composite key: "${juz}_${reciter.id}" (e.g. "1_2")
+  const keyWithId = `${juz}_${reciter.id}`;
+  if (allData[keyWithId] && allData[keyWithId].totalSize > 0) {
+    return allData[keyWithId];
   }
+
+  // 2. Try edition key: "${juz}_${reciter.editionIdentifier}"
+  if (reciter.editionIdentifier) {
+    const keyWithEdition = `${juz}_${reciter.editionIdentifier}`;
+    if (allData[keyWithEdition] && allData[keyWithEdition].totalSize > 0) {
+      return allData[keyWithEdition];
+    }
+  }
+
+  // 3. Fallback to default reciter 1 or bare juz number
+  const fallback = allData[`${juz}_1`] || allData[juz.toString()] || allData[juz];
+  if (fallback && fallback.totalSize > 0) {
+    return fallback;
+  }
+
   return null;
 }
 
@@ -115,11 +133,12 @@ export function getStreamSlicesForRange(
     const ayahSliceStart = Math.max(0, start - ayah.byteStart);
     const ayahSliceEnd = Math.min(ayah.size - 1, end - ayah.byteStart);
 
-    // Build URL for active reciter edition (or fallback to ayah.url)
+    // Use the exact URL pre-computed in ayah metadata for this reciter, or fallback
     const url =
-      edition === "ar.alafasy"
-        ? ayah.url
-        : `https://cdn.islamic.network/quran/audio/128/${edition}/${ayah.ayahNumber}.mp3`;
+      ayah.url ||
+      (edition === "ar.alafasy"
+        ? `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayah.ayahNumber}.mp3`
+        : `https://cdn.islamic.network/quran/audio/128/${edition}/${ayah.ayahNumber}.mp3`);
 
     if (ayahSliceStart > 0 || ayahSliceEnd < ayah.size - 1) {
       slices.push({

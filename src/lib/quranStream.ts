@@ -4,6 +4,7 @@ export interface Reciter {
   id: number;
   name: string;
   name_arabic: string;
+  language: string;
   style: "Murattal" | "Mujawwad" | string;
   primaryServer: string;
   fallbackServer?: string;
@@ -55,6 +56,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 1,
     name: "Mishary Rashid Alafasy",
     name_arabic: "مشاري راشد العفاسي",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server8.mp3quran.net/afs",
     fallbackServer: "https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee",
@@ -64,6 +66,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 2,
     name: "Maher Al Muaiqly",
     name_arabic: "ماهر المعيقلي",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server12.mp3quran.net/maher",
     fallbackServer: "https://download.quranicaudio.com/quran/maher_al_muaiqly",
@@ -73,6 +76,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 3,
     name: "Abu Bakr Al Shatri",
     name_arabic: "أبوبكر الشاطري",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server11.mp3quran.net/shatri",
     fallbackServer: "https://download.quranicaudio.com/quran/abu_bakr_ash-shaatree",
@@ -82,6 +86,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 4,
     name: "Ahmed ibn Ali al-Ajamy",
     name_arabic: "أحمد بن علي العجمي",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server10.mp3quran.net/ajm",
     fallbackServer: "https://download.quranicaudio.com/quran/ahmed_ibn_3ali_al-3ajamy",
@@ -91,6 +96,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 5,
     name: "Mahmoud Khalil Al-Hussary",
     name_arabic: "محمود خليل الحصري",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server13.mp3quran.net/husr",
     fallbackServer: "https://download.quranicaudio.com/quran/mahmood_khaleel_al-husaree_iza3ah",
@@ -100,6 +106,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 6,
     name: "Mahmoud Khalil Al-Hussary (Mujawwad)",
     name_arabic: "محمود خليل الحصري - مجود",
+    language: "Arabic",
     style: "Mujawwad",
     primaryServer: "https://server13.mp3quran.net/husr/Almusshaf-Al-Mojawwad",
     fallbackServer: "https://download.quranicaudio.com/quran/mahmood_khaleel_al-husaree_mujawwad",
@@ -109,6 +116,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 7,
     name: "Ali Al-Hudaify",
     name_arabic: "علي بن عبدالرحمن الحذيفي",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server9.mp3quran.net/hthfi",
     fallbackServer: "https://download.quranicaudio.com/quran/3alee_al_hudhaifee",
@@ -118,6 +126,7 @@ export const RECITERS_LIST: Reciter[] = [
     id: 8,
     name: "Muhammad Ayyoub",
     name_arabic: "محمد أيوب",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server8.mp3quran.net/ayyub",
     fallbackServer: "https://download.quranicaudio.com/quran/muhammad_ayyoob",
@@ -127,10 +136,21 @@ export const RECITERS_LIST: Reciter[] = [
     id: 9,
     name: "Muhammad Jibreel",
     name_arabic: "محمد جبريل",
+    language: "Arabic",
     style: "Murattal",
     primaryServer: "https://server8.mp3quran.net/jbrl",
     fallbackServer: "https://download.quranicaudio.com/quran/muhammad_jibreel",
     editionIdentifier: "ar.muhammadjibreel",
+  },
+  {
+    id: 10,
+    name: "Shamshad Ali Khan",
+    name_arabic: "شمشاد علی خان",
+    language: "Urdu",
+    style: "Translation",
+    primaryServer: "https://everyayah.com/data/translations/urdu_shamshad_ali_khan_46kbps",
+    fallbackServer: "https://everyayah.com/data/translations/urdu_shamshad_ali_khan_46kbps",
+    editionIdentifier: "ur.khan",
   },
 ];
 

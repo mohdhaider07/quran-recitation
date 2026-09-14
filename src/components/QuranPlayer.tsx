@@ -108,14 +108,16 @@ export default function QuranPlayer() {
                     <Globe className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col text-left flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 dark:text-teal-400/80">
-                      Reciter
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 dark:text-teal-400/80">
+                        Reciter
+                      </span>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-100/70 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">
+                        {activeReciter.language}
+                      </span>
+                    </div>
                     <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                       {activeReciter.name}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      {activeReciter.style} • {activeReciter.name_arabic}
                     </span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-teal-400" />
@@ -353,7 +355,7 @@ export default function QuranPlayer() {
                 <div className="flex flex-col text-left flex-1">
                   <span
                     className={cn(
-                      "text-base font-semibold",
+                      "text-base font-semibold leading-tight",
                       reciterId === r.id ? "text-white" : theme.text
                     )}
                   >
@@ -361,11 +363,11 @@ export default function QuranPlayer() {
                   </span>
                   <span
                     className={cn(
-                      "text-xs",
+                      "text-xs mt-0.5 font-medium",
                       reciterId === r.id ? "text-white/80" : theme.textMuted
                     )}
                   >
-                    {r.style} • {r.name_arabic}
+                    {r.language}
                   </span>
                 </div>
               </button>

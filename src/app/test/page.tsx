@@ -2,193 +2,16 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 
-// ─── TypeScript Types ─────────────────────────────────────────────────────────
+import {
+  Reciter,
+  JUZ_SURAHS_MAP,
+  RECITERS_LIST,
+  getSurahAudioUrl,
+  formatTime,
+} from "@/lib/quranStream";
 
-export interface Reciter {
-  id: number;
-  name: string;
-  name_arabic: string;
-  style: "Murattal" | "Mujawwad" | string;
-  primaryServer: string;
-  fallbackServer?: string;
-}
-
-// ─── Mapping: Surahs in each of the 30 Juz ───────────────────────────────────
-
-export const JUZ_SURAHS_MAP: Record<number, number[]> = {
-  1: [1, 2],
-  2: [2],
-  3: [2, 3],
-  4: [3, 4],
-  5: [4],
-  6: [4, 5],
-  7: [5, 6],
-  8: [6, 7],
-  9: [7, 8],
-  10: [8, 9],
-  11: [9, 10, 11],
-  12: [11, 12],
-  13: [12, 13, 14],
-  14: [15, 16],
-  15: [17, 18],
-  16: [18, 19, 20],
-  17: [21, 22],
-  18: [23, 24, 25],
-  19: [25, 26, 27],
-  20: [27, 28, 29],
-  21: [29, 30, 31, 32, 33],
-  22: [33, 34, 35, 36],
-  23: [36, 37, 38, 39],
-  24: [39, 40, 41],
-  25: [41, 42, 43, 44, 45],
-  26: [46, 47, 48, 49, 50, 51],
-  27: [51, 52, 53, 54, 55, 56, 57],
-  28: [58, 59, 60, 61, 62, 63, 64, 65, 66],
-  29: [67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77],
-  30: [
-    78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
-    101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114,
-  ],
-};
-
-// ─── 100% Reliable, Verified High-Speed Quran CDN Reciters ───────────────────
-
-export const RECITERS_LIST: Reciter[] = [
-  {
-    id: 1,
-    name: "Mishary Rashid Alafasy",
-    name_arabic: "مشاري راشد العفاسي",
-    style: "Murattal",
-    primaryServer: "https://server8.mp3quran.net/afs",
-    fallbackServer: "https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee",
-  },
-  {
-    id: 2,
-    name: "Abdul Rahman Al-Sudais",
-    name_arabic: "عبدالرحمن السديس",
-    style: "Murattal",
-    primaryServer: "https://server11.mp3quran.net/sds",
-    fallbackServer: "https://download.quranicaudio.com/quran/abdurrahmaan_as-sudais",
-  },
-  {
-    id: 3,
-    name: "Abdul Basit Abdul Samad (Murattal)",
-    name_arabic: "عبدالباسط عبدالصمد - مرتل",
-    style: "Murattal",
-    primaryServer: "https://server7.mp3quran.net/basit",
-    fallbackServer: "https://download.quranicaudio.com/quran/abdul_basit_murattal",
-  },
-  {
-    id: 4,
-    name: "Abdul Basit Abdul Samad (Mujawwad)",
-    name_arabic: "عبدالباسط عبدالصمد - مجود",
-    style: "Mujawwad",
-    primaryServer: "https://server7.mp3quran.net/basit/Almusshaf-Al-Mojawwad",
-    fallbackServer: "https://download.quranicaudio.com/quran/abdul_basit_mujawwad",
-  },
-  {
-    id: 5,
-    name: "Maher Al Muaiqly",
-    name_arabic: "ماهر المعيقلي",
-    style: "Murattal",
-    primaryServer: "https://server12.mp3quran.net/maher",
-    fallbackServer: "https://download.quranicaudio.com/quran/maher_al_muaiqly",
-  },
-  {
-    id: 6,
-    name: "Saad Al-Ghamdi",
-    name_arabic: "سعد الغامدي",
-    style: "Murattal",
-    primaryServer: "https://server7.mp3quran.net/s_gmd",
-    fallbackServer: "https://download.quranicaudio.com/quran/sa3d_al-ghaamidi",
-  },
-  {
-    id: 7,
-    name: "Hani Ar-Rifai",
-    name_arabic: "هاني الرفاعي",
-    style: "Murattal",
-    primaryServer: "https://server8.mp3quran.net/hani",
-    fallbackServer: "https://download.quranicaudio.com/quran/hani_ar-rifai",
-  },
-  {
-    id: 8,
-    name: "Abu Bakr Al Shatri",
-    name_arabic: "أبوبكر الشاطري",
-    style: "Murattal",
-    primaryServer: "https://server11.mp3quran.net/shatri",
-    fallbackServer: "https://download.quranicaudio.com/quran/abu_bakr_ash-shaatree",
-  },
-  {
-    id: 9,
-    name: "Yasser Al-Dosari",
-    name_arabic: "ياسر الدوسري",
-    style: "Murattal",
-    primaryServer: "https://server11.mp3quran.net/yasser",
-    fallbackServer: "https://download.quranicaudio.com/quran/yasser_ad-dussary",
-  },
-  {
-    id: 10,
-    name: "Saud Al-Shuraim",
-    name_arabic: "سعود الشريم",
-    style: "Murattal",
-    primaryServer: "https://server7.mp3quran.net/shur",
-    fallbackServer: "https://download.quranicaudio.com/quran/sa3ood_al-shuraym",
-  },
-  {
-    id: 11,
-    name: "Abdullah Al-Juhany",
-    name_arabic: "عبدالله الجهني",
-    style: "Murattal",
-    primaryServer: "https://server13.mp3quran.net/jhn",
-    fallbackServer: "https://download.quranicaudio.com/quran/abdullaah_3awwaad_al-juhaynee",
-  },
-  {
-    id: 12,
-    name: "Bandar Baleela",
-    name_arabic: "بندر بليلة",
-    style: "Murattal",
-    primaryServer: "https://server6.mp3quran.net/balilah",
-    fallbackServer: "https://download.quranicaudio.com/quran/bandar_baleela/complete",
-  },
-  {
-    id: 13,
-    name: "Abdullah Al-Buajan",
-    name_arabic: "عبدالله البعيجان",
-    style: "Murattal",
-    primaryServer: "https://server8.mp3quran.net/buajan",
-  },
-  {
-    id: 14,
-    name: "Mahmoud Khalil Al-Hussary",
-    name_arabic: "محمود خليل الحصري",
-    style: "Murattal",
-    primaryServer: "https://server13.mp3quran.net/husr",
-  },
-  {
-    id: 15,
-    name: "Ali Al-Hudaify",
-    name_arabic: "علي بن عبدالرحمن الحذيفي",
-    style: "Murattal",
-    primaryServer: "https://server9.mp3quran.net/hthfi",
-  },
-];
-
-/**
- * Returns the primary high-speed CDN audio URL for a given Surah and Reciter
- */
-export function getSurahAudioUrl(
-  surahNumber: number,
-  reciterId: number,
-  useFallback = false
-): string {
-  const pad = surahNumber.toString().padStart(3, "0");
-  const reciter = RECITERS_LIST.find((r) => r.id === reciterId) || RECITERS_LIST[0];
-
-  if (useFallback && reciter.fallbackServer) {
-    return `${reciter.fallbackServer}/${pad}.mp3`;
-  }
-  return `${reciter.primaryServer}/${pad}.mp3`;
-}
+export type { Reciter };
+export { JUZ_SURAHS_MAP, RECITERS_LIST, getSurahAudioUrl };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -554,17 +377,6 @@ export default function TestPage() {
     },
     [activeSurahNumber]
   );
-
-  const formatTime = (seconds: number): string => {
-    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return "0:00";
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 

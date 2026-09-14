@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Play,
   Pause,
@@ -10,195 +10,90 @@ import {
   VolumeX,
   BookOpen,
   ChevronRight,
-  List,
   Globe,
   X,
   AlertCircle,
   RefreshCw,
   Loader2,
 } from "lucide-react";
-import { useGetJuzQuery } from "@/store/api/quranApi";
 import { Slider } from "@/components/ui/slider";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { IconButton } from "@/components/ui/IconButton";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import { useQuranAudio } from "@/hooks/useQuranAudio";
-
-interface Reciter {
-  id: string;
-  name: string;
-  language: string;
-}
-
-const RECITERS: Reciter[] = [
-  {
-    id: "ar.abdulbasitmurattal",
-    name: "Abdul Basit (Murattal)",
-    language: "Arabic",
-  },
-  { id: "en.walk", name: "Ibrahim Walk", language: "English" },
-  { id: "ur.khan", name: "Fateh Muhammad Jalandhari", language: "Urdu" },
-];
-
-const SkeletonLoader = () => {
-  return (
-    <div className="space-y-6 w-full max-w-lg mx-auto animate-fade-in-up py-8">
-      <div className="h-12 rounded-xl animate-shimmer bg-theme-bg-muted" />
-      <div className="h-8 rounded-lg w-3/4 mx-auto animate-shimmer bg-theme-bg-muted" />
-      <div className="h-6 rounded-full w-1/2 mx-auto animate-shimmer bg-theme-bg-muted" />
-    </div>
-  );
-};
+import { useQuranStreamAudio } from "@/hooks/useQuranStreamAudio";
+import { RECITERS_LIST, formatTime } from "@/lib/quranStream";
 
 export default function QuranPlayer() {
   const { theme } = useTheme();
 
-  const [juz, setJuz] = useState(1);
-  const [reciter, setReciter] = useState(RECITERS[0].id);
-
-  const [showAyahList, setShowAyahList] = useState(false);
   const [showReciterList, setShowReciterList] = useState(false);
   const [showJuzList, setShowJuzList] = useState(false);
 
-  const ayahListRef = useRef<HTMLDivElement | null>(null);
-
-  const currentReciter = useMemo(
-    () => RECITERS.find((r) => r.id === reciter) || RECITERS[0],
-    [reciter]
-  );
-
-  const { data, isFetching, isError, refetch } = useGetJuzQuery({ juz, reciter });
-  const ayahs = useMemo(() => data?.data?.ayahs ?? [], [data]);
-
-  const handleNextJuz = useCallback(() => {
-    if (juz < 30) {
-      setJuz((prev) => prev + 1);
-    }
-  }, [juz]);
-
   const {
-    currentAyahIndex,
-    currentAyah,
+    juz,
+    reciterId,
     isPlaying,
-    isAudioLoading,
-    audioError,
-    currentTime,
-    duration,
+    isLoading,
+    totalJuzDuration,
+    totalJuzElapsedTime,
+    activeSurahMeta,
+    activeReciter,
+    error,
     volume,
     isMuted,
     togglePlay,
-    selectAyah,
-    nextAyah,
-    prevAyah,
-    seekTo,
+    handleJuzChange,
+    handleNextJuz,
+    handlePrevJuz,
+    handleReciterChange,
     setVolume,
     toggleMute,
-    resetIndex,
-    setIsPlaying,
-  } = useQuranAudio({
-    ayahs,
-    juz,
-    reciterId: reciter,
-    reciterName: currentReciter.name,
-    isFetching,
-    onNextJuz: handleNextJuz,
-  });
-
-  const changeJuz = useCallback(
-    (nextJuz: number) => {
-      setJuz(nextJuz);
-      resetIndex();
-      setIsPlaying(true);
-    },
-    [resetIndex, setIsPlaying]
-  );
-
-  const changeReciter = useCallback(
-    (nextReciter: string) => {
-      setReciter(nextReciter);
-      resetIndex();
-      setIsPlaying(true);
-    },
-    [resetIndex, setIsPlaying]
-  );
-
-  // Scroll to current ayah in the list modal when opened
-  useEffect(() => {
-    if (showAyahList && ayahListRef.current) {
-      const timer = setTimeout(() => {
-        const activeItem = ayahListRef.current?.querySelector('[data-active="true"]');
-        if (activeItem) {
-          activeItem.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [currentAyahIndex, showAyahList]);
+    retry,
+  } = useQuranStreamAudio();
 
   const openReciterList = useCallback(() => {
     setShowJuzList(false);
-    setShowAyahList(false);
     setShowReciterList(true);
   }, []);
 
   const openJuzList = useCallback(() => {
     setShowReciterList(false);
-    setShowAyahList(false);
     setShowJuzList(true);
   }, []);
 
-  const openAyahList = useCallback(() => {
-    setShowReciterList(false);
-    setShowJuzList(false);
-    setShowAyahList(true);
-  }, []);
-
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   return (
     <div className="flex flex-col gap-6 sm:gap-8">
-      <GlassCard className={`relative flex flex-col min-h-125 overflow-hidden group ${theme.cardBg} ${theme.border}`}>
+      <GlassCard
+        className={`relative flex flex-col min-h-125 overflow-hidden group ${theme.cardBg} ${theme.border}`}
+      >
         <div className="p-4 sm:p-6 md:p-8 flex flex-col items-center grow">
           <SectionHeader title="Holy Quran" className="w-full mb-6 sm:mb-8" />
 
-          {/* Error Banner when API load fails */}
-          {isError ? (
+          {/* Error Banner when Audio CDN stream fails */}
+          {error ? (
             <div className="grow flex flex-col items-center justify-center w-full p-6 text-center space-y-4">
               <div className="p-3 rounded-full bg-red-500/10 text-red-500">
                 <AlertCircle className="w-8 h-8" />
               </div>
               <div className="space-y-1">
                 <h4 className="text-base font-semibold text-slate-800 dark:text-slate-200">
-                  Failed to load Juz {juz} recitations
+                  Failed to stream Juz {juz}
                 </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-                  Please check your internet connection and try again.
-                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">{error}</p>
               </div>
               <button
-                onClick={() => refetch()}
+                onClick={retry}
                 className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-md active:scale-95"
               >
                 <RefreshCw className="w-4 h-4" />
                 Retry
               </button>
             </div>
-          ) : isFetching ? (
-            <div className="grow flex items-center justify-center w-full">
-              <SkeletonLoader />
-            </div>
           ) : (
             <div className="flex flex-col w-full animate-fade-in-up gap-6">
-             
-
-              {/* Selection Trigger Buttons */}
+              {/* Selection Trigger Buttons (Reciter & Juz only) */}
               <div className="flex flex-col gap-3 w-full">
                 {/* Reciter Trigger */}
                 <button
@@ -217,7 +112,10 @@ export default function QuranPlayer() {
                       Reciter
                     </span>
                     <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                      {currentReciter.name}
+                      {activeReciter.name}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {activeReciter.style} • {activeReciter.name_arabic}
                     </span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-teal-400" />
@@ -242,28 +140,8 @@ export default function QuranPlayer() {
                     <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                       Juz {juz}
                     </span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-teal-400" />
-                </button>
-
-                {/* Ayat Trigger */}
-                <button
-                  onClick={openAyahList}
-                  className={cn(
-                    "w-full p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
-                    "bg-gradient-to-br from-white/60 to-white/30 backdrop-blur-md",
-                    "border-teal-100 hover:border-teal-300 hover:shadow-md dark:bg-slate-900/40 dark:border-slate-800"
-                  )}
-                >
-                  <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 shadow-sm border border-teal-100/50 dark:border-teal-900/40">
-                    <List className="w-5 h-5" />
-                  </div>
-                  <div className="flex flex-col text-left flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-800/70 dark:text-teal-400/80">
-                      Ayat
-                    </span>
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                      {ayahs.length} verses • Playing Ayah {currentAyahIndex + 1}
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      Para {juz} • {activeSurahMeta.englishName} ({activeSurahMeta.name})
                     </span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-teal-400" />
@@ -279,22 +157,23 @@ export default function QuranPlayer() {
             `relative mt-auto border-t ${theme.border} transition-all duration-500 ${theme.bgMuted}`
           )}
         >
-          {/* Progress Bar Container */}
+          {/* Read-Only Progress Bar Container */}
           <div className="px-6 py-4 space-y-3">
             <div className="flex items-center justify-between mb-1">
               <span className={cn("text-[10px] font-mono", theme.textMuted)}>
-                {formatTime(currentTime)}
+                {formatTime(totalJuzElapsedTime)}
               </span>
               <span className={cn("text-[10px] font-mono", theme.textMuted)}>
-                {formatTime(duration)}
+                {totalJuzDuration > 0 ? formatTime(totalJuzDuration) : "calculating..."}
               </span>
             </div>
             <Slider
-              value={[currentTime]}
-              max={duration || 100}
-              step={0.1}
-              onValueChange={(val) => seekTo(val[0])}
-              className="cursor-pointer"
+              value={[totalJuzElapsedTime]}
+              max={totalJuzDuration > 0 ? totalJuzDuration : 100}
+              step={1}
+              disabled={true}
+              className="pointer-events-none opacity-80"
+              aria-label="Juz playback progress"
             />
           </div>
 
@@ -310,7 +189,7 @@ export default function QuranPlayer() {
                     : `${theme.bgMuted} ${theme.textMuted}`
                 )}
               >
-                {isAudioLoading ? (
+                {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : isPlaying ? (
                   <Volume2 className="w-5 h-5" />
@@ -328,36 +207,39 @@ export default function QuranPlayer() {
                   Reciting
                 </span>
                 <span
-                  className={cn(
-                    "text-xs font-medium truncate max-w-[120px]",
-                    theme.text
-                  )}
+                  className={cn("text-xs font-medium truncate max-w-[140px]", theme.text)}
+                  title={activeReciter.name}
                 >
-                  {currentReciter.name}
+                  {activeReciter.name}
+                </span>
+                <span className={cn("text-[10px] truncate max-w-[140px]", theme.textMuted)}>
+                  Juz {juz} • {activeSurahMeta.englishName}
                 </span>
               </div>
             </div>
 
-            {/* Core Controls: Prev / Play / Next */}
+            {/* Core Controls: Prev Juz / Play / Next Juz */}
             <div className="flex items-center gap-4 sm:gap-8">
               <IconButton
-                onClick={prevAyah}
-                disabled={currentAyahIndex === 0 && juz === 1}
+                onClick={handlePrevJuz}
+                disabled={juz <= 1}
                 variant="secondary"
                 className="w-10 h-10 sm:w-12 sm:h-12"
+                aria-label="Previous Juz"
+                title="Previous Juz"
               >
                 <SkipBack className="w-5 h-5" />
               </IconButton>
 
               <button
                 onClick={togglePlay}
-                disabled={isFetching || ayahs.length === 0}
                 className={cn(
                   "w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 shadow-xl disabled:opacity-50 disabled:pointer-events-none",
                   `bg-gradient-to-r ${theme.primary} text-white shadow-theme-primary`
                 )}
+                aria-label={isPlaying ? "Pause" : "Play"}
               >
-                {isAudioLoading ? (
+                {isLoading ? (
                   <Loader2 className="w-8 h-8 animate-spin" />
                 ) : isPlaying ? (
                   <Pause className="w-8 h-8 fill-current" />
@@ -367,10 +249,12 @@ export default function QuranPlayer() {
               </button>
 
               <IconButton
-                onClick={nextAyah}
-                disabled={currentAyahIndex === ayahs.length - 1 && juz === 30}
+                onClick={handleNextJuz}
+                disabled={juz >= 30}
                 variant="secondary"
                 className="w-10 h-10 sm:w-12 sm:h-12"
+                aria-label="Next Juz"
+                title="Next Juz"
               >
                 <SkipForward className="w-5 h-5" />
               </IconButton>
@@ -393,9 +277,7 @@ export default function QuranPlayer() {
               </IconButton>
               <div className="flex-1 sm:w-40 space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className={cn("text-sm font-medium", theme.textMuted)}>
-                    Volume
-                  </span>
+                  <span className={cn("text-sm font-medium", theme.textMuted)}>Volume</span>
                   <span
                     className={cn(
                       "text-xs tabular-nums font-bold",
@@ -423,7 +305,9 @@ export default function QuranPlayer() {
         <div
           className={cn(
             "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 shadow-2xl",
-            showReciterList ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
+            showReciterList
+              ? "translate-y-0 opacity-100 pointer-events-auto"
+              : "translate-y-full opacity-0 pointer-events-none"
           )}
         >
           <div
@@ -442,16 +326,16 @@ export default function QuranPlayer() {
           </div>
 
           <div className="grow overflow-y-auto">
-            {RECITERS.map((r) => (
+            {RECITERS_LIST.map((r) => (
               <button
                 key={r.id}
                 onClick={() => {
-                  changeReciter(r.id);
+                  handleReciterChange(r.id);
                   setShowReciterList(false);
                 }}
                 className={cn(
                   "w-full p-4 transition-all flex items-center gap-3 focus-ring",
-                  reciter === r.id
+                  reciterId === r.id
                     ? `bg-gradient-to-r ${theme.primary} text-white`
                     : `hover:${theme.bgMuted} border-y border-transparent ${theme.text}`
                 )}
@@ -459,18 +343,18 @@ export default function QuranPlayer() {
                 <div
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
-                    reciter === r.id
+                    reciterId === r.id
                       ? "bg-white text-theme-primary-start"
                       : `${theme.bgMuted} ${theme.textMuted}`
                   )}
                 >
                   <Globe className="w-5 h-5" />
                 </div>
-                <div className="flex flex-col text-left">
+                <div className="flex flex-col text-left flex-1">
                   <span
                     className={cn(
                       "text-base font-semibold",
-                      reciter === r.id ? "text-white" : theme.text
+                      reciterId === r.id ? "text-white" : theme.text
                     )}
                   >
                     {r.name}
@@ -478,10 +362,10 @@ export default function QuranPlayer() {
                   <span
                     className={cn(
                       "text-xs",
-                      reciter === r.id ? "text-white/80" : theme.textMuted
+                      reciterId === r.id ? "text-white/80" : theme.textMuted
                     )}
                   >
-                    {r.language}
+                    {r.style} • {r.name_arabic}
                   </span>
                 </div>
               </button>
@@ -493,7 +377,9 @@ export default function QuranPlayer() {
         <div
           className={cn(
             "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 shadow-2xl",
-            showJuzList ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
+            showJuzList
+              ? "translate-y-0 opacity-100 pointer-events-auto"
+              : "translate-y-full opacity-0 pointer-events-none"
           )}
         >
           <div
@@ -516,7 +402,7 @@ export default function QuranPlayer() {
               <button
                 key={juzNum}
                 onClick={() => {
-                  changeJuz(juzNum);
+                  handleJuzChange(juzNum);
                   setShowJuzList(false);
                 }}
                 className={cn(
@@ -546,106 +432,10 @@ export default function QuranPlayer() {
                     Juz {juzNum}
                   </span>
                   <span
-                    className={cn(
-                      "text-xs",
-                      juz === juzNum ? "text-white/80" : theme.textMuted
-                    )}
+                    className={cn("text-xs", juz === juzNum ? "text-white/80" : theme.textMuted)}
                   >
                     Para {juzNum}
                   </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Ayat List Drawer Overlay */}
-        <div
-          ref={ayahListRef}
-          className={cn(
-            "absolute inset-0 z-50 transition-all duration-500 ease-in-out transform flex flex-col backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 shadow-2xl",
-            showAyahList ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-full opacity-0 pointer-events-none"
-          )}
-        >
-          <div
-            className={cn(
-              `p-6 flex items-center justify-between border-b ${theme.border} ${theme.bgMuted}`
-            )}
-          >
-            <h3 className={cn("text-lg font-bold", theme.text)}>Ayat List</h3>
-            <IconButton
-              onClick={() => setShowAyahList(false)}
-              variant="ghost"
-              className={theme.textMuted}
-            >
-              <X className="w-5 h-5" />
-            </IconButton>
-          </div>
-
-          <div className="grow overflow-y-auto">
-            {ayahs.map((ayah, index) => (
-              <button
-                key={ayah.number || index}
-                data-active={index === currentAyahIndex}
-                onClick={() => {
-                  selectAyah(index);
-                  setShowAyahList(false);
-                }}
-                className={cn(
-                  "w-full text-right p-4 transition-all flex items-center gap-3 focus-ring",
-                  index === currentAyahIndex
-                    ? `bg-gradient-to-r ${theme.primary} text-white`
-                    : `hover:${theme.bgMuted} border-y border-transparent ${theme.text}`
-                )}
-              >
-                {/* Playing indicator / Index */}
-                <div
-                  className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                    index === currentAyahIndex
-                      ? "bg-white text-theme-primary-start"
-                      : `${theme.bgMuted} ${theme.textMuted}`
-                  )}
-                >
-                  {index === currentAyahIndex && isPlaying ? (
-                    <div className="flex gap-0.5 items-end h-4">
-                      <span
-                        className="w-0.5 rounded-full animate-pulse bg-current"
-                        style={{ height: "100%", animationDelay: "0ms" }}
-                      ></span>
-                      <span
-                        className="w-0.5 rounded-full animate-pulse bg-current"
-                        style={{ height: "60%", animationDelay: "150ms" }}
-                      ></span>
-                      <span
-                        className="w-0.5 rounded-full animate-pulse bg-current"
-                        style={{ height: "100%", animationDelay: "300ms" }}
-                      ></span>
-                    </div>
-                  ) : (
-                    index + 1
-                  )}
-                </div>
-
-                <div className="flex-1 text-right" dir="rtl">
-                  <p
-                    className={cn(
-                      "text-lg font-arabic leading-relaxed line-clamp-1",
-                      index === currentAyahIndex ? "font-bold" : theme.text
-                    )}
-                  >
-                    {ayah.text}
-                  </p>
-                  <p
-                    className={cn(
-                      "text-xs mt-1",
-                      index === currentAyahIndex
-                        ? "text-white/80"
-                        : theme.textMuted
-                    )}
-                  >
-                    Ayah {index + 1} • {ayah.surah?.englishName || ""}
-                  </p>
                 </div>
               </button>
             ))}

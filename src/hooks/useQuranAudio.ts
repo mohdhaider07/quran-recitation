@@ -31,7 +31,7 @@ interface UseQuranAudioOptions {
 // ─── Blob Pre-Cache ───────────────────────────────────────────────────────────
 
 interface BlobCacheEntry {
-  url: string;     // original CDN URL
+  url: string; // original CDN URL
   blobUrl: string; // blob: URL (in-memory)
 }
 
@@ -69,17 +69,24 @@ export function useQuranAudio({
   const onNextJuzRef = useRef(onNextJuz);
 
   // Keep refs in sync
-  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(() => { currentIndexRef.current = currentAyahIndex; }, [currentAyahIndex]);
-  useEffect(() => { ayahsRef.current = ayahs; }, [ayahs]);
-  useEffect(() => { juzRef.current = juz; }, [juz]);
-  useEffect(() => { onNextJuzRef.current = onNextJuz; }, [onNextJuz]);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+  useEffect(() => {
+    currentIndexRef.current = currentAyahIndex;
+  }, [currentAyahIndex]);
+  useEffect(() => {
+    ayahsRef.current = ayahs;
+  }, [ayahs]);
+  useEffect(() => {
+    juzRef.current = juz;
+  }, [juz]);
+  useEffect(() => {
+    onNextJuzRef.current = onNextJuz;
+  }, [onNextJuz]);
 
   // ── Computed ──────────────────────────────────────────────────────────────
-  const currentAyah = useMemo(
-    () => ayahs[currentAyahIndex] || null,
-    [ayahs, currentAyahIndex]
-  );
+  const currentAyah = useMemo(() => ayahs[currentAyahIndex] || null, [ayahs, currentAyahIndex]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -126,7 +133,8 @@ export function useQuranAudio({
       if (idx >= currentAyahs.length) break;
 
       const ayah = currentAyahs[idx];
-      const cdnUrl = ayah?.audio?.trim() ||
+      const cdnUrl =
+        ayah?.audio?.trim() ||
         (Array.isArray(ayah?.audioSecondary) ? ayah.audioSecondary?.[0]?.trim() : null);
 
       if (!cdnUrl || blobCacheRef.current.has(cdnUrl)) continue;
@@ -153,22 +161,30 @@ export function useQuranAudio({
 
   // ── WakeLock ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    let wakeLock: any = null;
+    let wakeLock: { release: () => Promise<void> } | null = null;
     const request = async () => {
+      const nav = navigator as unknown as {
+        wakeLock?: { request: (type: string) => Promise<{ release: () => Promise<void> }> };
+      };
       if (
         isPlaying &&
         typeof window !== "undefined" &&
         "wakeLock" in navigator &&
-        typeof (navigator as any).wakeLock?.request === "function"
+        typeof nav.wakeLock?.request === "function"
       ) {
         try {
-          wakeLock = await (navigator as any).wakeLock.request("screen");
-        } catch { /* not available */ }
+          wakeLock = await nav.wakeLock.request("screen");
+        } catch {
+          /* not available */
+        }
       }
     };
     request();
     return () => {
-      if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
     };
   }, [isPlaying]);
 
@@ -210,7 +226,8 @@ export function useQuranAudio({
 
         if (nextIdx < total) {
           const nextAyah = ayahsRef.current[nextIdx];
-          const cdnUrl = nextAyah?.audio?.trim() ||
+          const cdnUrl =
+            nextAyah?.audio?.trim() ||
             (Array.isArray(nextAyah?.audioSecondary) ? nextAyah.audioSecondary?.[0]?.trim() : null);
 
           if (cdnUrl) {
@@ -321,6 +338,7 @@ export function useQuranAudio({
     if (!audio || isFetching || ayahs.length === 0) return;
 
     // Reset
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAudioError(null);
     setCurrentTime(0);
     setDuration(0);
@@ -338,7 +356,7 @@ export function useQuranAudio({
     const supportsNativeHLS =
       isSafari &&
       (audio.canPlayType("application/vnd.apple.mpegurl") !== "" ||
-       audio.canPlayType("application/x-mpegurl") !== "");
+        audio.canPlayType("application/x-mpegurl") !== "");
 
     if (supportsNativeHLS) {
       modeRef.current = "native-hls";
@@ -535,7 +553,10 @@ export function useQuranAudio({
       : null,
     handlers: {
       play: () => setIsPlaying(true),
-      pause: () => { setIsPlaying(false); audioRef.current?.pause(); },
+      pause: () => {
+        setIsPlaying(false);
+        audioRef.current?.pause();
+      },
       previoustrack: prevAyah,
       nexttrack: nextAyah,
       seekbackward: skipBackward,

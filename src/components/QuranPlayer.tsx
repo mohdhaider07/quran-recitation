@@ -172,7 +172,7 @@ export default function QuranPlayer() {
               max={totalJuzDuration > 0 ? totalJuzDuration : 100}
               step={1}
               disabled={true}
-              className="pointer-events-none opacity-80"
+              className="pointer-events-none opacity-80 cursor-default"
               aria-label="Juz playback progress"
             />
           </div>

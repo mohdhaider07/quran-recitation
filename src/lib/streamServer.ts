@@ -1,20 +1,31 @@
-import { JUZ_SURAHS_MAP, RECITERS_LIST, getSurahAudioUrl, Reciter } from "@/lib/quranStream";
+import fs from "fs/promises";
+import path from "path";
+import { RECITERS_LIST, Reciter } from "@/lib/quranStream";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface SurahByteInfo {
+export interface AyahMeta {
+  ayahNumber: number;
   surahNumber: number;
-  url: string;
+  surahName: string;
+  surahArabicName: string;
+  numberInSurah: number;
   size: number;
-  startByte: number;
-  endByte: number;
+  duration: number;
+  byteStart: number;
+  byteEnd: number;
+  startSec: number;
+  endSec: number;
+  url: string;
 }
 
-export interface JuzByteMap {
+export interface JuzStaticData {
   juz: number;
-  reciterId: number;
+  reciter: string;
+  totalAyahs: number;
   totalSize: number;
-  surahs: SurahByteInfo[];
+  totalDuration: number;
+  ayahs: AyahMeta[];
 }
 
 export interface StreamSlice {
@@ -22,66 +33,49 @@ export interface StreamSlice {
   rangeHeader?: string;
 }
 
-// ─── In-Memory Caches ─────────────────────────────────────────────────────────
+// ─── In-Memory Cache ──────────────────────────────────────────────────────────
 
-// Maps audio CDN URL to content-length in bytes
-const surahSizeCache = new Map<string, number>();
-
-// Maps `${juz}:${reciterId}` to full JuzByteMap
-const juzByteMapCache = new Map<string, JuzByteMap>();
-
-// Prevents redundant parallel builds for the same Juz and Reciter
-const pendingMapBuilds = new Map<string, Promise<JuzByteMap | null>>();
-
-// ─── Size Resolution ──────────────────────────────────────────────────────────
+let cachedMetadata: Record<string, JuzStaticData> | null = null;
 
 /**
- * Resolves the byte size of an audio file via HEAD request with fallback to Range: bytes=0-0.
+ * Loads the pre-computed static metadata from disk.
+ * Cached in memory so subsequent lookups take 0.001 ms.
  */
-export async function getAudioFileSize(url: string): Promise<number> {
-  const cached = surahSizeCache.get(url);
-  if (cached !== undefined && cached > 0) {
-    return cached;
+export async function loadJuzMetadata(): Promise<Record<string, JuzStaticData>> {
+  if (cachedMetadata && Object.keys(cachedMetadata).length > 0) {
+    return cachedMetadata;
   }
 
   try {
-    let res = await fetch(url, { method: "HEAD" });
-
-    // Retry once if upstream returns a transient 5xx error
-    if (!res.ok && res.status >= 500) {
-      await new Promise((r) => setTimeout(r, 100));
-      res = await fetch(url, { method: "HEAD" });
-    }
-
-    let len = res.headers.get("content-length");
-
-    // Fallback: Range request to extract total size from Content-Range header
-    if (!len || parseInt(len, 10) <= 0) {
-      const rangeRes = await fetch(url, { headers: { Range: "bytes=0-0" } });
-      const contentRange = rangeRes.headers.get("content-range");
-      if (contentRange) {
-        const match = contentRange.match(/\/(\d+)$/);
-        if (match) {
-          len = match[1];
-        }
-      }
-    }
-
-    const size = len ? parseInt(len, 10) : 0;
-    if (size > 0) {
-      surahSizeCache.set(url, size);
-    }
-    return size;
-  } catch (error) {
-    console.warn(`[streamServer] Failed to fetch size for ${url}:`, error);
-    return 0;
+    const filePath = path.join(process.cwd(), "src/data/juzMetadata.json");
+    const raw = await fs.readFile(filePath, "utf-8");
+    cachedMetadata = JSON.parse(raw);
+    return cachedMetadata || {};
+  } catch (err) {
+    console.warn("[streamServer] Warning: Failed to load juzMetadata.json:", err);
+    return {};
   }
 }
 
 /**
- * Resolves the Reciter by ID or fallback to default
+ * Resolves the static metadata for a given Juz.
  */
-export function resolveReciter(reciterParam: string | number | null): Reciter {
+export async function getJuzStaticMetadata(
+  juz: number,
+  _reciterParam?: string | number | null
+): Promise<JuzStaticData | null> {
+  const allData = await loadJuzMetadata();
+  const data = allData[juz] || allData[juz.toString()];
+  if (data && data.totalSize > 0) {
+    return data;
+  }
+  return null;
+}
+
+/**
+ * Resolves the Reciter by ID or fallback
+ */
+export function resolveReciter(reciterParam?: string | number | null): Reciter {
   if (!reciterParam) return RECITERS_LIST[0];
 
   const parsedId = typeof reciterParam === "number" ? reciterParam : parseInt(reciterParam, 10);
@@ -90,7 +84,6 @@ export function resolveReciter(reciterParam: string | number | null): Reciter {
     if (found) return found;
   }
 
-  // Check by name substring match if passed string name
   if (typeof reciterParam === "string") {
     const lower = reciterParam.toLowerCase();
     const found = RECITERS_LIST.find((r) => r.name.toLowerCase().includes(lower));
@@ -101,70 +94,50 @@ export function resolveReciter(reciterParam: string | number | null): Reciter {
 }
 
 /**
- * Builds or retrieves the cached byte map for a given Juz and Reciter.
+ * Slices the Ayah files matching the requested byte range for HTTP 206 Partial Content.
  */
-export async function getJuzByteMap(juz: number, reciterId: number): Promise<JuzByteMap | null> {
-  const cacheKey = `${juz}:${reciterId}`;
+export function getStreamSlicesForRange(
+  meta: JuzStaticData,
+  start: number,
+  end: number,
+  reciterParam?: string | number | null
+): StreamSlice[] {
+  const slices: StreamSlice[] = [];
+  const reciter = resolveReciter(reciterParam);
+  const edition = reciter.editionIdentifier || "ar.alafasy";
 
-  const cached = juzByteMapCache.get(cacheKey);
-  if (cached) return cached;
-
-  const pending = pendingMapBuilds.get(cacheKey);
-  if (pending) return pending;
-
-  const buildPromise = (async () => {
-    const surahNumbers = JUZ_SURAHS_MAP[juz] || [];
-    if (surahNumbers.length === 0) return null;
-
-    const urls = surahNumbers.map((sNum) => ({
-      surahNumber: sNum,
-      url: getSurahAudioUrl(sNum, reciterId),
-    }));
-
-    // Fetch sizes concurrently
-    const sizes = await Promise.all(urls.map((item) => getAudioFileSize(item.url)));
-
-    const surahs: SurahByteInfo[] = [];
-    let currentOffset = 0;
-
-    for (let i = 0; i < urls.length; i++) {
-      const size = sizes[i];
-      if (size <= 0) continue;
-
-      surahs.push({
-        surahNumber: urls[i].surahNumber,
-        url: urls[i].url,
-        size,
-        startByte: currentOffset,
-        endByte: currentOffset + size - 1,
-      });
-
-      currentOffset += size;
+  for (const ayah of meta.ayahs) {
+    // Skip Ayahs outside the requested byte window
+    if (ayah.byteEnd < start || ayah.byteStart > end) {
+      continue;
     }
 
-    if (currentOffset === 0) return null;
+    const ayahSliceStart = Math.max(0, start - ayah.byteStart);
+    const ayahSliceEnd = Math.min(ayah.size - 1, end - ayah.byteStart);
 
-    const byteMap: JuzByteMap = {
-      juz,
-      reciterId,
-      totalSize: currentOffset,
-      surahs,
-    };
+    // Build URL for active reciter edition (or fallback to ayah.url)
+    const url =
+      edition === "ar.alafasy"
+        ? ayah.url
+        : `https://cdn.islamic.network/quran/audio/128/${edition}/${ayah.ayahNumber}.mp3`;
 
-    juzByteMapCache.set(cacheKey, byteMap);
-    return byteMap;
-  })().finally(() => {
-    pendingMapBuilds.delete(cacheKey);
-  });
+    if (ayahSliceStart > 0 || ayahSliceEnd < ayah.size - 1) {
+      slices.push({
+        url,
+        rangeHeader: `bytes=${ayahSliceStart}-${ayahSliceEnd}`,
+      });
+    } else {
+      slices.push({ url });
+    }
+  }
 
-  pendingMapBuilds.set(cacheKey, buildPromise);
-  return buildPromise;
+  return slices;
 }
 
-// ─── Stream Pipe ──────────────────────────────────────────────────────────────
+// ─── Resilient Stream Pipe ────────────────────────────────────────────────────
 
 /**
- * Creates a resilient ReadableStream piping audio chunks sequentially from remote CDNs.
+ * Creates a resilient ReadableStream sequentially piping audio chunks from CDNs.
  */
 export function createMultiAudioStream(
   slices: StreamSlice[],

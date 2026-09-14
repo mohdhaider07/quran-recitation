@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getJuzByteMap,
+  getJuzStaticMetadata,
+  getStreamSlicesForRange,
   createMultiAudioStream,
   resolveReciter,
-  StreamSlice,
 } from "@/lib/streamServer";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/juz-stream?juz=1&reciter=1
- * Streams high-speed continuous audio for an entire Juz with full HTTP Range (seek) support.
+ * Streams continuous audio for an entire Juz with instant 0ms startup and full HTTP Range (seek) support.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -21,16 +21,16 @@ export async function GET(request: NextRequest) {
   const reciter = resolveReciter(reciterParam);
 
   try {
-    const byteMap = await getJuzByteMap(juz, reciter.id);
+    const meta = await getJuzStaticMetadata(juz, reciter.id);
 
-    if (!byteMap || byteMap.surahs.length === 0 || byteMap.totalSize === 0) {
+    if (!meta || meta.ayahs.length === 0 || meta.totalSize === 0) {
       return NextResponse.json(
-        { error: `No audio files available for Juz ${juz} with reciter ${reciter.name}.` },
+        { error: `No audio metadata available for Juz ${juz}.` },
         { status: 404 }
       );
     }
 
-    const { totalSize, surahs } = byteMap;
+    const { totalSize } = meta;
     const rangeHeader = request.headers.get("range");
 
     let start = 0;
@@ -62,34 +62,14 @@ export async function GET(request: NextRequest) {
     }
 
     const contentLength = end - start + 1;
-
-    // Filter and slice only the Surahs overlapping the requested byte range
-    const slices: StreamSlice[] = [];
-    for (const surah of surahs) {
-      if (surah.endByte < start || surah.startByte > end) {
-        continue;
-      }
-
-      const surahSliceStart = Math.max(0, start - surah.startByte);
-      const surahSliceEnd = Math.min(surah.size - 1, end - surah.startByte);
-
-      if (surahSliceStart > 0 || surahSliceEnd < surah.size - 1) {
-        slices.push({
-          url: surah.url,
-          rangeHeader: `bytes=${surahSliceStart}-${surahSliceEnd}`,
-        });
-      } else {
-        slices.push({ url: surah.url });
-      }
-    }
-
+    const slices = getStreamSlicesForRange(meta, start, end, reciter.id);
     const stream = createMultiAudioStream(slices, request.signal);
 
     const headers = new Headers({
       "Content-Type": "audio/mpeg",
       "Content-Length": contentLength.toString(),
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=3600, s-maxage=86400",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, immutable",
       "Access-Control-Allow-Origin": "*",
     });
 

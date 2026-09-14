@@ -20,15 +20,15 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Quran Ambience",
+  title: "Peaceful Quran",
   description: "Listen to Quran with peaceful ambient sounds",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Quran Ambience",
+    title: "Peaceful Quran",
   },
-  applicationName: "Quran Ambience",
+  applicationName: "Peaceful Quran",
   icons: {
     icon: "/icon",
     apple: "/apple-icon",

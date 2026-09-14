@@ -1,6 +1,6 @@
-# Quran Ambience — Project Context & AI Agent Guide
+# Peaceful Quran — Project Context & AI Agent Guide
 
-Welcome to the **Quran Ambience** project context. This document serves as the central index and operating guide for AI agents and human developers working on this codebase.
+Welcome to the **Peaceful Quran** project context. This document serves as the central index and operating guide for AI agents and human developers working on this codebase.
 
 ---
 
@@ -18,7 +18,7 @@ Quick access to in-depth architectural and design documentation:
 
 ## 1. Project Overview
 
-**Quran Ambience** is a serene web application combining continuous high-speed audio recitation of the Holy Quran with a customizable ambient nature sound mixer.
+**Peaceful Quran** is a serene web application combining continuous high-speed audio recitation of the Holy Quran with a customizable ambient nature sound mixer.
 
 ### Key Capabilities
 

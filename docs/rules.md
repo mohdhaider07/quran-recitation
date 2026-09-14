@@ -1,4 +1,4 @@
-# Engineering Rules & Coding Guidelines — Quran Ambience
+# Engineering Rules & Coding Guidelines — Peaceful Quran
 
 [← Back to AGENT.md](../AGENT.md)
 

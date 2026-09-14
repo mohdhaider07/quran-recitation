@@ -1,4 +1,4 @@
-# Design System & UI/UX Guidelines — Quran Ambience
+# Design System & UI/UX Guidelines — Peaceful Quran
 
 [← Back to AGENT.md](../AGENT.md)
 
@@ -6,7 +6,7 @@
 
 ## 1. Design Philosophy
 
-**Quran Ambience** embodies **Spiritual Serenity and Modern Elegance**. The user interface is crafted to evoke peace, mindfulness, and clarity, avoiding visual noise while delivering a premium, polished, state-of-the-art aesthetic.
+**Peaceful Quran** embodies **Spiritual Serenity and Modern Elegance**. The user interface is crafted to evoke peace, mindfulness, and clarity, avoiding visual noise while delivering a premium, polished, state-of-the-art aesthetic.
 
 Key Design Tenets:
 

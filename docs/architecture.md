@@ -1,4 +1,4 @@
-# System Architecture — Quran Ambience
+# System Architecture — Peaceful Quran
 
 [← Back to AGENT.md](../AGENT.md)
 
@@ -6,7 +6,7 @@
 
 ## 1. Executive Overview
 
-**Quran Ambience** is a modern, high-performance web application designed to deliver an immersive spiritual experience. It seamlessly blends high-speed CDN audio streaming of the Holy Quran (recitation organized by Juz and Surah) with a customizable multi-channel ambient nature sound mixer.
+**Peaceful Quran** is a modern, high-performance web application designed to deliver an immersive spiritual experience. It seamlessly blends high-speed CDN audio streaming of the Holy Quran (recitation organized by Juz and Surah) with a customizable multi-channel ambient nature sound mixer.
 
 ```mermaid
 graph TD

@@ -34,6 +34,15 @@ export default function TestPage() {
   const reciterIdRef = useRef<number>(reciterId);
   const currentSurahIndexRef = useRef<number>(currentSurahIndex);
 
+  const surahsInActiveJuz = useMemo(() => {
+    return JUZ_SURAHS_MAP[juz] || [1];
+  }, [juz]);
+
+  const activeSurahNumber = surahsInActiveJuz[currentSurahIndex] || surahsInActiveJuz[0];
+
+  const surahsInActiveJuzRef = useRef<number[]>(surahsInActiveJuz);
+  const activeSurahNumberRef = useRef<number>(activeSurahNumber);
+
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
@@ -46,12 +55,12 @@ export default function TestPage() {
   useEffect(() => {
     currentSurahIndexRef.current = currentSurahIndex;
   }, [currentSurahIndex]);
-
-  const surahsInActiveJuz = useMemo(() => {
-    return JUZ_SURAHS_MAP[juz] || [1];
-  }, [juz]);
-
-  const activeSurahNumber = surahsInActiveJuz[currentSurahIndex] || surahsInActiveJuz[0];
+  useEffect(() => {
+    surahsInActiveJuzRef.current = surahsInActiveJuz;
+  }, [surahsInActiveJuz]);
+  useEffect(() => {
+    activeSurahNumberRef.current = activeSurahNumber;
+  }, [activeSurahNumber]);
 
   const activeReciter = useMemo(() => {
     return RECITERS_LIST.find((r) => r.id === reciterId) || RECITERS_LIST[0];
@@ -103,6 +112,22 @@ export default function TestPage() {
     };
   }, [juz, reciterId]);
 
+  // ── Pre-buffer Next Surah Audio (Zero-Gap Transition) ─────────────────────
+  useEffect(() => {
+    const list = surahsInActiveJuz;
+    const nextIdx = currentSurahIndex + 1;
+    if (nextIdx < list.length) {
+      const nextSurahNum = list[nextIdx];
+      const nextUrl = getSurahAudioUrl(nextSurahNum, reciterId);
+      const prefetchAudio = new Audio();
+      prefetchAudio.preload = "auto";
+      prefetchAudio.src = nextUrl;
+      return () => {
+        prefetchAudio.removeAttribute("src");
+      };
+    }
+  }, [surahsInActiveJuz, currentSurahIndex, reciterId]);
+
   // ── Overall Juz Total Duration & Elapsed Time ─────────────────────────────
   const totalJuzDuration = useMemo(() => {
     return surahsInActiveJuz.reduce((acc, sNum) => {
@@ -120,10 +145,10 @@ export default function TestPage() {
     return elapsed;
   }, [surahsInActiveJuz, currentSurahIndex, surahDurations, currentTime]);
 
-  // ── Setup Audio Element & Listeners ───────────────────────────────────────
+  // ── Setup Audio Element (Single Persistent Instance) ──────────────────────
   useEffect(() => {
     const audio = new Audio();
-    audio.preload = "metadata";
+    audio.preload = "auto";
     audioRef.current = audio;
 
     audio.ontimeupdate = () => {
@@ -136,7 +161,7 @@ export default function TestPage() {
         setCurrentDuration(d);
         setSurahDurations((prev) => ({
           ...prev,
-          [activeSurahNumber]: d,
+          [activeSurahNumberRef.current]: d,
         }));
       }
       setIsLoading(false);
@@ -153,20 +178,39 @@ export default function TestPage() {
 
     // Auto-advance sequentially to the NEXT Surah in this Juz
     audio.onended = () => {
-      const list = JUZ_SURAHS_MAP[juzRef.current] || [];
+      const list = surahsInActiveJuzRef.current;
       const nextIdx = currentSurahIndexRef.current + 1;
 
       if (nextIdx < list.length) {
+        currentSurahIndexRef.current = nextIdx;
         setCurrentSurahIndex(nextIdx);
         setCurrentTime(0);
         const nextSurahNum = list[nextIdx];
+        activeSurahNumberRef.current = nextSurahNum;
         const nextUrl = getSurahAudioUrl(nextSurahNum, reciterIdRef.current);
         audio.src = nextUrl;
         audio.load();
         audio.play().catch(console.warn);
       } else {
-        setIsPlaying(false);
-        setCurrentTime(0);
+        const curJuz = juzRef.current;
+        if (curJuz < 30) {
+          const nextJuz = curJuz + 1;
+          const nextJuzSurahs = JUZ_SURAHS_MAP[nextJuz] || [1];
+          juzRef.current = nextJuz;
+          currentSurahIndexRef.current = 0;
+          surahsInActiveJuzRef.current = nextJuzSurahs;
+          activeSurahNumberRef.current = nextJuzSurahs[0];
+          setJuz(nextJuz);
+          setCurrentSurahIndex(0);
+          setCurrentTime(0);
+          const nextUrl = getSurahAudioUrl(nextJuzSurahs[0], reciterIdRef.current);
+          audio.src = nextUrl;
+          audio.load();
+          audio.play().catch(console.warn);
+        } else {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }
       }
     };
 
@@ -175,12 +219,10 @@ export default function TestPage() {
         return;
       }
 
-      // Check if fallback URL is available
-      const fallbackUrl = getSurahAudioUrl(activeSurahNumber, reciterIdRef.current, true);
+      const sNum = activeSurahNumberRef.current;
+      const fallbackUrl = getSurahAudioUrl(sNum, reciterIdRef.current, true);
       if (audio.src !== fallbackUrl) {
-        console.warn(
-          `Primary CDN failed for Surah ${activeSurahNumber}, trying fallback: ${fallbackUrl}`
-        );
+        console.warn(`Primary CDN failed for Surah ${sNum}, trying fallback: ${fallbackUrl}`);
         audio.src = fallbackUrl;
         audio.load();
         if (isPlayingRef.current) {
@@ -206,7 +248,7 @@ export default function TestPage() {
       audio.onerror = null;
       audioRef.current = null;
     };
-  }, [activeSurahNumber]);
+  }, []);
 
   // ── Seek across the whole Juz ─────────────────────────────────────────────
   const handleSeekJuz = useCallback(
@@ -271,13 +313,16 @@ export default function TestPage() {
       audio.pause();
     }
     setJuz(newJuz);
+    juzRef.current = newJuz;
     setCurrentSurahIndex(0);
+    currentSurahIndexRef.current = 0;
     setCurrentTime(0);
     setCurrentDuration(0);
     setIsPlaying(false);
     setError(null);
 
     const firstSurah = (JUZ_SURAHS_MAP[newJuz] || [1])[0];
+    activeSurahNumberRef.current = firstSurah;
     const newUrl = getSurahAudioUrl(firstSurah, reciterIdRef.current);
     if (audio) {
       audio.src = newUrl;

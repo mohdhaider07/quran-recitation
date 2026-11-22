@@ -6,68 +6,84 @@
 
 ## 1. Executive Overview
 
-**Peaceful Quran** is a modern, high-performance web application designed to deliver an immersive spiritual experience. It seamlessly blends high-speed CDN audio streaming of the Holy Quran (recitation organized by Juz and Surah) with a customizable multi-channel ambient nature sound mixer.
+**Peaceful Quran** is a modern, high-performance web application designed to deliver an immersive spiritual experience. It seamlessly blends continuous streaming of the Holy Quran (recitation organized by Juz) with a customizable multi-channel ambient nature sound mixer.
 
 ```mermaid
 graph TD
     Client[Browser Client: Next.js 16 + React 19]
     PlayerHook[useQuranStreamAudio Hook]
     MixerHook[useAudioMixer Hook]
+    SessionHook[usePlaybackMediaSession Hook]
     MediaSession[W3C MediaSession API]
-    CDNAudio[(High-Speed CDNs: mp3quran.net / quranicaudio.com)]
-    BackendAPI[/api/juz-stream: Byte Range Streamer]
-    HLSAPI[/api/hls/playlist: Safari VOD M3U8]
+    MetadataAPI[/api/juz-metadata: Juz Timeline/]
+    StreamAPI[/api/juz-stream: Byte Range Streamer/]
+    AudioData[(src/data/audioMetadata.json)]
+    CDNAudio[(Per-Ayah CDNs: cdn.islamic.network / everyayah.com)]
     NatureSounds[(Local Ambient Nature Audio Files)]
 
     Client --> PlayerHook
     Client --> MixerHook
-    PlayerHook --> MediaSession
-    PlayerHook --> CDNAudio
-    PlayerHook -. Optional Failover .-> BackendAPI
+    Client --> SessionHook
+    SessionHook --> MediaSession
+    SessionHook --> PlayerHook
+    SessionHook --> MixerHook
+    PlayerHook --> MetadataAPI
+    PlayerHook --> StreamAPI
+    MetadataAPI --> AudioData
+    StreamAPI --> AudioData
+    StreamAPI --> CDNAudio
     MixerHook --> NatureSounds
-    MediaSession --> PlayerHook
-    HLSAPI --> CDNAudio
 ```
 
 ---
 
 ## 2. Audio Streaming Architecture
 
-### 2.1 Direct High-Speed CDN Pipeline
+### 2.1 Per-Ayah Sources, One Continuous Stream
 
-Audio is sourced from verified, high-speed, CORS-exempt content delivery networks (`server*.mp3quran.net` and `download.quranicaudio.com`).
+Recitation audio comes from per-ayah MP3 files, one URL template per reciter (`ayahAudioTemplate` in `src/lib/quranStream.ts`). The server concatenates the ayahs of a Juz into one continuous MP3 (`/api/juz-stream`), so the browser's native media pipeline plays a whole Juz with no JavaScript between ayahs — the key to surviving a locked screen.
 
-- **15 Verified Reciters**: Curated reciters with primary high-speed CDNs and secondary fallback mirrors.
-- **Failover Mechanism**: If a primary CDN URL returns an error or network drop, the audio engine automatically fails over to the reciter's `fallbackServer`.
-- **Pre-Probbed Metadata Durations**: When a Juz is selected (containing multiple Surahs mapped via `JUZ_SURAHS_MAP`), lightweight background probe objects resolve the duration of each Surah. This calculates `totalJuzDuration` and `totalJuzElapsedTime` across the entire Juz.
+- **10 Reciters**: 9 Arabic reciters plus an Urdu translation (`RECITERS_LIST`).
+- **Exact Juz boundaries**: `JUZ_START_AYAH` and `SURAH_AYAH_COUNTS` define the Hafs divisions, so each Juz starts and ends on the correct ayah (whole-surah files cannot do this).
 
-### 2.2 Continuous Multi-Surah Juz Sequencing
+### 2.2 Generated Audio Metadata (`scripts/generateAudioMetadata.mjs`)
 
-A single Juz spans multiple Surahs (e.g., Juz 1 contains Surah 1 and Surah 2; Juz 30 contains Surahs 78 to 114).
+`pnpm generate:audio` probes every ayah file of every reciter (HTTP Range reads of the header and tail only) and writes `src/data/audioMetadata.json`:
 
-- Audio automatically advances to the next Surah when the current one ends (`audio.onended`).
-- The transition maintains user playback state without hitching.
+- One `[firstAudioByte, audioLength, durationMs, formatCode?]` tuple per ayah. ID3 tags, junk bytes and the Xing/Info header are excluded, so ayahs concatenate into a clean MP3 stream.
+- **Exact durations**: Xing frame counts, CBR byte math, or a full frame scan for variable-bitrate files. Reciters differ (128 kbps / 44.1 kHz vs 64 kbps / 22.05 kHz), so durations are never derived from file size with an assumed bitrate.
+- **Format-uniform segments**: Chrome aborts playback (`Unsupported midstream configuration change`) when the sample rate or channel count changes mid-stream. A file in a different format is replaced by a same-reciter alternate source when one exists; otherwise the Juz is split into segments at each format change (e.g. Abu Bakr Al Shatri's 11 kHz surahs, which no source offers at 44.1 kHz).
+- A content `version` is appended to stream URLs, so caches are bypassed whenever the metadata is regenerated.
 
-### 2.3 Lock-Screen & Background Playback Survival
+Re-run the script after changing a reciter's `ayahAudioTemplate` or adding a reciter. Probe results are cached between runs (`--cache=<file>`).
 
-Maintaining continuous background audio across mobile platforms (especially Android and iOS) is achieved through a multi-layered strategy:
+### 2.3 Server-Side Streaming Engine
 
-1. **W3C MediaSession API (`src/hooks/useMediaSession.ts`)**: Registers system-level action handlers (`play`, `pause`, `previoustrack` for Previous Juz, `nexttrack` for Next Juz) and position state. This registers the web tab with the OS media pipeline so it is not suspended when the screen locks.
-2. **Synchronous Ref Delegation**: Callback closures store state in mutable refs (`isPlayingRef`, `juzRef`, `reciterIdRef`) to eliminate stale closures when lock-screen hardware events fire.
-3. **Screen WakeLock API**: Requests screen wake lock when playing to prevent premature OS sleep during active sessions.
+Powered by `src/lib/streamServer.ts`:
 
-### 2.4 Server-Side Streaming Engine (`/api/juz-stream`)
+- **`/api/juz-metadata?juz&reciter`**: the Juz timeline — total duration, segment stream URLs and per-ayah start/end times — used for progress display and the current surah/ayah.
+- **`/api/juz-stream?juz&reciter&segment[&from][&v]`**: HTTP 206 range streaming of one segment. Byte ranges are mapped onto per-ayah slices, fetched from the CDN with `Range` requests.
+- **Backpressure**: bytes are pulled from the CDN only as fast as the client reads them; the next slice is requested ahead of time to hide CDN latency.
+- **Exact lengths**: every slice contributes exactly its expected byte count (short upstream reads are resumed once, then zero-padded), so `Content-Length` and later offsets never drift.
+- **Bounded responses**: open-ended `bytes=N-` requests (Chrome, Android WebView) are answered with at most 2 MiB; the browser requests the next range itself, so no function invocation streams a whole Juz.
+- **`from=<ayahNumber>`** starts a segment stream at an ayah — used to resume after a network failure and when switching reciters mid-Juz.
 
-A dedicated Next.js Route Handler (`src/app/api/juz-stream/route.ts`) powered by `src/lib/streamServer.ts`:
+### 2.4 Client Playback (`useQuranStreamAudio`)
 
-- **Byte Map Generation (`JuzByteMap`)**: Resolves cumulative byte offsets for all Surahs in a Juz.
-- **In-Memory Caching (`surahSizeCache`, `juzByteMapCache`)**: Instantaneous sub-millisecond response on subsequent requests.
-- **HTTP 206 Partial Content (Range Seeking)**: Slices byte offsets seamlessly across Surah boundaries, allowing standard media players to stream the entire Juz as a single continuous MP3 file.
-- **Resilient Web Stream**: Pipes remote CDN audio through `ReadableStream` chunks with client abort handling.
+- One persistent `HTMLAudioElement`. A Juz's segments, then the next Juz, are chained in the `ended` handler. The next Juz's timeline is prefetched, so the switch happens synchronously inside `ended` (no network round trip while the screen is locked).
+- **Intent vs. state**: `wantsPlaybackRef` records whether the listener wants audio. Browsers fire `pause` right before `ended`, so `isPlaying` alone cannot decide whether to continue.
+- **Recovery**: one silent retry after a media error, then an inline error with Retry; both resume at the current ayah.
+- Juz, reciter and volume persist in `localStorage` (`peaceful-quran:player`).
+- Seeking is intentionally not offered (progress is display-only): browsers can only estimate byte offsets inside a concatenated stream.
 
-### 2.5 Safari HLS Dynamic Playlist (`/api/hls/playlist`)
+### 2.5 Lock-Screen & Background Playback Survival
 
-For Apple WebKit platforms, the application can generate dynamic `#EXTM3U` VOD playlists. Safari's native media engine handles segment transitions natively in C++, bypassing JavaScript suspension during sleep.
+1. **W3C MediaSession API**: `usePlaybackMediaSession` (built on `useMediaSession`) is the single owner of the page-wide session for both the recitation and the ambient mixer. It provides play/pause, previous/next Juz, position state and artwork; pause silences both players and play resumes what was paused.
+2. **Synchronous Ref Delegation**: audio event handlers read mutable refs (`wantsPlaybackRef`, `juzRef`, `metadataRef`, …) so lock-screen events never act on stale state.
+
+### 2.6 Safari HLS Dynamic Playlist (`/api/hls/playlist`)
+
+Experimental and not used by the player: generates `#EXTM3U` VOD playlists of whole-surah files for Apple WebKit.
 
 ---
 
@@ -75,9 +91,9 @@ For Apple WebKit platforms, the application can generate dynamic `#EXTM3U` VOD p
 
 The ambient mixer (`src/hooks/useAudioMixer.ts` & `src/components/AmbianceMixer.tsx`) operates in parallel with Quran recitation:
 
-- **5 Concurrent Sound Channels**: Rain, Thunder, Forest Birds, Stream Water, and Pine Trees.
+- **3 Looping Sound Channels**: Rain, Thunder and Birds (`SOUNDS`). Files are only downloaded once a sound is turned up.
 - **Independent Volume Control**: Each track maintains an independent gain level between 0% and 100%.
-- **Master Audio Presets**: Quick-select presets (`Rain`, `Night`, `Birds`, `Calm`) for instant atmospheric immersion.
+- **Presets**: `Calm`, `Storm` and `Forest`, plus Reset.
 - **Independent Audio Instances**: Managed independently so adjusting ambient sound volumes never interrupts or distorts recitation.
 
 ---
@@ -85,19 +101,20 @@ The ambient mixer (`src/hooks/useAudioMixer.ts` & `src/components/AmbianceMixer.
 ## 4. State Management & Data Flow
 
 ```
-[UI Components]
+[page.tsx]  (container: owns both players)
        │
-       ├── useQuranStreamAudio ───► HTMLAudioElement + MediaSession
-       │                                  ▲
-       │                                  │
-       │                           quranStream.ts (Data & Mappings)
-       │
+       ├── useQuranStreamAudio ───► HTMLAudioElement ◄── /api/juz-stream
+       │         ▲                        timeline ◄──── /api/juz-metadata
+       │         │
        ├── useAudioMixer ─────────► Multi-channel Audio Pool
-       │
-       └── Redux Store ───────────► themeSlice (Active Theme State)
+       │         ▲
+       └── usePlaybackMediaSession (lock screen / headset controls for both)
+
+[QuranPlayer] [AmbianceMixer]  ◄── presentation components, receive hook state as props
+Redux Store ───► themeSlice (Active Theme State)
 ```
 
-- **Audio State**: Encapsulated cleanly within custom hooks (`useQuranStreamAudio`, `useAudioMixer`) rather than global Redux, ensuring zero unnecessary re-renders of unrelated UI trees.
+- **Audio State**: Encapsulated within custom hooks (`useQuranStreamAudio`, `useAudioMixer`) called by the page and passed to presentation components as props. `AmbianceMixer` is memoized, so playback progress ticks don't re-render it.
 - **Theme State**: Persisted globally via Redux Toolkit (`themeSlice.ts`), supporting instant theme swapping across all glassmorphic components.
 
 ---
@@ -106,25 +123,33 @@ The ambient mixer (`src/hooks/useAudioMixer.ts` & `src/components/AmbianceMixer.
 
 ```
 web/
+├── scripts/
+│   └── generateAudioMetadata.mjs    # Probes CDN audio → src/data/audioMetadata.json
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── juz-stream/route.ts  # Byte-range audio stream server
-│   │   │   └── hls/                 # HLS VOD playlist generator
+│   │   │   ├── juz-metadata/route.ts # Juz timeline (segments, ayah times)
+│   │   │   ├── juz-stream/route.ts   # Byte-range audio stream server
+│   │   │   └── hls/playlist/         # Experimental HLS VOD playlist (unused)
 │   │   ├── layout.tsx               # Root Next.js layout & font setup
+│   │   ├── manifest.ts              # Web app manifest
 │   │   ├── page.tsx                 # Main application page (/)
 │   │   └── providers.tsx            # Redux Provider wrapper
 │   ├── components/
 │   │   ├── QuranPlayer.tsx          # Main glassmorphic player card
 │   │   ├── AmbianceMixer.tsx        # Nature sounds mixer card
 │   │   └── ui/                      # Atomic UI design components
+│   ├── data/
+│   │   └── audioMetadata.json       # Generated per-ayah audio map (do not edit by hand)
 │   ├── hooks/
 │   │   ├── useQuranStreamAudio.ts   # Core stream playback hook
 │   │   ├── useAudioMixer.ts         # Multi-channel ambient mixer hook
-│   │   ├── useMediaSession.ts       # W3C MediaSession API integration
+│   │   ├── usePlaybackMediaSession.ts # Single Media Session owner for both players
+│   │   ├── useMediaSession.ts       # W3C MediaSession API primitive
+│   │   ├── useDrawerDismiss.ts      # Escape / back-button dismissal for drawers
 │   │   └── useTheme.ts              # Theme selector hook
 │   ├── lib/
-│   │   ├── quranStream.ts           # Types, reciters, mappings, formatters
+│   │   ├── quranStream.ts           # Reciters, Quran structure, shared API types, formatters
 │   │   ├── streamServer.ts          # Server-side byte mapping & stream pipe
 │   │   ├── themes.ts                # Theme token definitions
 │   │   └── utils.ts                 # ClassName merging (cn) utility

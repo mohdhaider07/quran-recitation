@@ -9,6 +9,84 @@ export interface Reciter {
   primaryServer: string;
   fallbackServer?: string;
   editionIdentifier?: string;
+  /**
+   * Per-ayah MP3 URL used by the Juz stream (`/api/juz-stream`).
+   * Placeholders: `{ayahNumber}` (1–6236), `{surahPadded}` and `{versePadded}` (3 digits).
+   */
+  ayahAudioTemplate: string;
+}
+
+// ─── Quran Structure (Hafs) ──────────────────────────────────────────────────
+
+export const TOTAL_AYAHS = 6236;
+
+/** Number of ayahs in each surah (index 0 = Surah 1). */
+export const SURAH_AYAH_COUNTS: readonly number[] = [
+  7, 286, 200, 176, 120, 165, 206, 75, 129, 109, 123, 111, 43, 52, 99, 128, 111, 110, 98, 135, 112,
+  78, 118, 64, 77, 227, 93, 88, 69, 60, 34, 30, 73, 54, 45, 83, 182, 88, 75, 85, 54, 53, 89, 59, 37,
+  35, 38, 29, 18, 45, 60, 49, 62, 55, 78, 96, 29, 22, 24, 13, 14, 11, 11, 18, 12, 12, 30, 52, 52,
+  44, 28, 28, 20, 56, 40, 31, 50, 40, 46, 42, 29, 19, 36, 25, 22, 17, 19, 26, 30, 20, 15, 21, 11, 8,
+  8, 19, 5, 8, 8, 11, 11, 8, 3, 9, 5, 4, 7, 3, 6, 3, 5, 4, 5, 6,
+];
+
+/** Global ayah number at which each Juz begins (index 0 = Juz 1). */
+export const JUZ_START_AYAH: readonly number[] = [
+  1, 149, 260, 386, 517, 641, 751, 900, 1042, 1201, 1328, 1479, 1649, 1803, 2030, 2215, 2484, 2674,
+  2876, 3215, 3386, 3564, 3733, 4090, 4265, 4511, 4706, 5105, 5242, 5673,
+];
+
+/** Returns the first and last global ayah numbers of a Juz (1–30). */
+export function getJuzAyahRange(juz: number): [number, number] {
+  const first = JUZ_START_AYAH[juz - 1];
+  const last = juz < 30 ? JUZ_START_AYAH[juz] - 1 : TOTAL_AYAHS;
+  return [first, last];
+}
+
+/** Maps a global ayah number (1–6236) to its surah and verse number. */
+export function getAyahLocation(ayahNumber: number): { surah: number; verse: number } {
+  let remaining = ayahNumber;
+  for (let i = 0; i < SURAH_AYAH_COUNTS.length; i++) {
+    if (remaining <= SURAH_AYAH_COUNTS[i]) {
+      return { surah: i + 1, verse: remaining };
+    }
+    remaining -= SURAH_AYAH_COUNTS[i];
+  }
+  throw new RangeError(`Ayah ${ayahNumber} is outside 1-${TOTAL_AYAHS}`);
+}
+
+// ─── Juz Metadata API (`GET /api/juz-metadata`) ──────────────────────────────
+
+/** One ayah on the Juz timeline, in seconds from the start of the Juz. */
+export interface AyahTiming {
+  ayahNumber: number;
+  surahNumber: number;
+  numberInSurah: number;
+  startSec: number;
+  endSec: number;
+}
+
+/** A separately streamed, format-uniform part of a Juz (most Juz have exactly one). */
+export interface JuzSegmentInfo {
+  url: string;
+  startSec: number;
+  duration: number;
+}
+
+export interface JuzMetadataResponse {
+  juz: number;
+  reciterId: number;
+  totalDuration: number;
+  segments: JuzSegmentInfo[];
+  ayahs: AyahTiming[];
+}
+
+/** Expands a per-ayah URL template for a global ayah number. */
+export function fillAyahAudioTemplate(template: string, ayahNumber: number): string {
+  const { surah, verse } = getAyahLocation(ayahNumber);
+  return template
+    .replace("{ayahNumber}", String(ayahNumber))
+    .replace("{surahPadded}", String(surah).padStart(3, "0"))
+    .replace("{versePadded}", String(verse).padStart(3, "0"));
 }
 
 // ─── 30 Juz to Surahs Mapping ───────────────────────────────────────────────
@@ -61,6 +139,7 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server8.mp3quran.net/afs",
     fallbackServer: "https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee",
     editionIdentifier: "ar.alafasy",
+    ayahAudioTemplate: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/{ayahNumber}.mp3",
   },
   {
     id: 2,
@@ -71,6 +150,8 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server12.mp3quran.net/maher",
     fallbackServer: "https://download.quranicaudio.com/quran/maher_al_muaiqly",
     editionIdentifier: "ar.mahermuaiqly",
+    ayahAudioTemplate:
+      "https://cdn.islamic.network/quran/audio/128/ar.mahermuaiqly/{ayahNumber}.mp3",
   },
   {
     id: 3,
@@ -81,6 +162,7 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server11.mp3quran.net/shatri",
     fallbackServer: "https://download.quranicaudio.com/quran/abu_bakr_ash-shaatree",
     editionIdentifier: "ar.shaatree",
+    ayahAudioTemplate: "https://cdn.islamic.network/quran/audio/128/ar.shaatree/{ayahNumber}.mp3",
   },
   {
     id: 4,
@@ -91,6 +173,7 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server10.mp3quran.net/ajm",
     fallbackServer: "https://download.quranicaudio.com/quran/ahmed_ibn_3ali_al-3ajamy",
     editionIdentifier: "ar.ahmedajamy",
+    ayahAudioTemplate: "https://cdn.islamic.network/quran/audio/128/ar.ahmedajamy/{ayahNumber}.mp3",
   },
   {
     id: 5,
@@ -101,6 +184,7 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server13.mp3quran.net/husr",
     fallbackServer: "https://download.quranicaudio.com/quran/mahmood_khaleel_al-husaree_iza3ah",
     editionIdentifier: "ar.husary",
+    ayahAudioTemplate: "https://cdn.islamic.network/quran/audio/128/ar.husary/{ayahNumber}.mp3",
   },
   {
     id: 6,
@@ -111,6 +195,8 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server13.mp3quran.net/husr/Almusshaf-Al-Mojawwad",
     fallbackServer: "https://download.quranicaudio.com/quran/mahmood_khaleel_al-husaree_mujawwad",
     editionIdentifier: "ar.husarymujawwad",
+    ayahAudioTemplate:
+      "https://cdn.islamic.network/quran/audio/128/ar.husarymujawwad/{ayahNumber}.mp3",
   },
   {
     id: 7,
@@ -121,6 +207,7 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server9.mp3quran.net/hthfi",
     fallbackServer: "https://download.quranicaudio.com/quran/3alee_al_hudhaifee",
     editionIdentifier: "ar.hudhaify",
+    ayahAudioTemplate: "https://cdn.islamic.network/quran/audio/128/ar.hudhaify/{ayahNumber}.mp3",
   },
   {
     id: 8,
@@ -131,6 +218,8 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server8.mp3quran.net/ayyub",
     fallbackServer: "https://download.quranicaudio.com/quran/muhammad_ayyoob",
     editionIdentifier: "ar.muhammadayyoub",
+    ayahAudioTemplate:
+      "https://cdn.islamic.network/quran/audio/128/ar.muhammadayyoub/{ayahNumber}.mp3",
   },
   {
     id: 9,
@@ -141,6 +230,8 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://server8.mp3quran.net/jbrl",
     fallbackServer: "https://download.quranicaudio.com/quran/muhammad_jibreel",
     editionIdentifier: "ar.muhammadjibreel",
+    ayahAudioTemplate:
+      "https://cdn.islamic.network/quran/audio/128/ar.muhammadjibreel/{ayahNumber}.mp3",
   },
   {
     id: 10,
@@ -151,6 +242,8 @@ export const RECITERS_LIST: Reciter[] = [
     primaryServer: "https://everyayah.com/data/translations/urdu_shamshad_ali_khan_46kbps",
     fallbackServer: "https://everyayah.com/data/translations/urdu_shamshad_ali_khan_46kbps",
     editionIdentifier: "ur.khan",
+    ayahAudioTemplate:
+      "https://everyayah.com/data/translations/urdu_shamshad_ali_khan_46kbps/{surahPadded}{versePadded}.mp3",
   },
 ];
 

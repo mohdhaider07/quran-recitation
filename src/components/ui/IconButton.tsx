@@ -1,20 +1,17 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/hooks/useTheme";
 
 type IconButtonVariant = "ghost" | "secondary" | "accent" | "danger" | "brand";
 
-interface IconButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: IconButtonVariant;
 }
 
 export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
   ({ variant = "ghost", className, type = "button", ...props }, ref) => {
     const variantClasses: Record<IconButtonVariant, string> = {
-      ghost:
-        "text-theme-text-muted hover:text-theme-text-accent transition-colors",
+      ghost: "text-theme-text-muted hover:text-theme-text-accent transition-colors",
       secondary:
         "bg-theme-card/50 border border-theme-border text-theme-text-muted hover:bg-theme-card transition-all",
       accent:

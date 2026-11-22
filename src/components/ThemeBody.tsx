@@ -15,7 +15,7 @@ export default function ThemeBody({ children }: { children: React.ReactNode }) {
       data-theme={themeKey}
       className={cn(
         outfit.className,
-        "transition-all duration-700 min-h-screen bg-gradient-to-br bg-fixed bg-cover",
+        "transition-all duration-700 min-h-screen bg-gradient-to-br bg-cover",
         theme.gradient,
         theme.text,
         isDark && "dark"

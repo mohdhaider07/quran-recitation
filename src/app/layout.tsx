@@ -9,30 +9,30 @@ const amiri = Amiri({
   weight: ["400", "700"],
   variable: "--font-amiri",
   display: "swap",
+  // Only used for a few Arabic names; don't compete with the initial page load.
+  preload: false,
 });
 
 export const viewport: Viewport = {
-  themeColor: "#020617",
+  themeColor: "#f0fdfa",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false, // Prevent zooming issues on inputs
+  viewportFit: "cover", // Enables the safe-area insets used by the body padding
 };
 
+// Icons come from the app/icon.png and app/apple-icon.png file conventions,
+// and the web app manifest from app/manifest.ts.
 export const metadata: Metadata = {
   title: "Peaceful Quran",
   description: "Listen to Quran with peaceful ambient sounds",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Peaceful Quran",
   },
   applicationName: "Peaceful Quran",
-  icons: {
-    icon: "/icon",
-    apple: "/apple-icon",
-  },
 };
 
 export default function RootLayout({

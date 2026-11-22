@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
+    "generate:audio": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/generateAudioMetadata.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

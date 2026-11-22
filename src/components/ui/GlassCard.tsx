@@ -1,14 +1,10 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-type GlassTone = "default" | "brand";
-
-interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
-  tone?: GlassTone;
-}
+type GlassCardProps = React.HTMLAttributes<HTMLDivElement>;
 
 export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
-  ({ tone = "default", className, ...props }, ref) => {
+  ({ className, ...props }, ref) => {
     return (
       <div
         ref={ref}

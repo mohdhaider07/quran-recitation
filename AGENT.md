@@ -23,9 +23,9 @@ Quick access to in-depth architectural and design documentation:
 ### Key Capabilities
 
 - **Juz-Based Streaming**: Listen to any of the 30 Juz with automatic multi-surah sequencing.
-- **15 Verified High-Speed Reciters**: Sourced from verified, high-speed CDNs (`mp3quran.net` and `quranicaudio.com`) with automated failover mirrors.
+- **10 Reciters**: Per-ayah audio (`cdn.islamic.network`, `everyayah.com`) concatenated server-side into one continuous stream per Juz, with exact durations from generated metadata.
 - **Lock-Screen Playback**: Background audio survival on mobile devices via W3C MediaSession API and synchronous ref patterns.
-- **Interactive Ambient Mixer**: 5 nature sound tracks (Rain, Thunder, Birds, Droplets, Pine) with master presets and quick-reset.
+- **Interactive Ambient Mixer**: 3 nature sound tracks (Rain, Thunder, Birds) with presets (Calm, Storm, Forest) and quick-reset.
 - **Glassmorphic Theme Design**: Dynamic dark/light mode with rich micro-animations and spiritual color palettes.
 
 ---
@@ -38,7 +38,7 @@ Quick access to in-depth architectural and design documentation:
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) with Vanilla CSS variables
 - **State Management**: [Redux Toolkit](https://redux-toolkit.js.org/) (`themeSlice`) + Custom React Hooks
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **Media Controls**: W3C MediaSession API + Screen WakeLock API
+- **Media Controls**: W3C MediaSession API (single owner: `usePlaybackMediaSession`)
 - **Tooling**: ESLint 9, Prettier, Husky, Lint-Staged
 
 ---
@@ -55,8 +55,9 @@ web/
 ├── src/
 │   ├── app/
 │   │   ├── api/
+│   │   │   ├── juz-metadata/route.ts # Juz timeline (segments, ayah times)
 │   │   │   ├── juz-stream/route.ts  # Byte-range audio streaming server
-│   │   │   └── hls/                 # Dynamic HLS playlist & segment proxy
+│   │   │   └── hls/playlist/        # Experimental HLS playlist (unused)
 │   │   ├── page.tsx                 # Main application page (/)
 │   │   ├── layout.tsx               # Root application layout
 │   │   └── providers.tsx            # Redux Provider wrapper
@@ -70,7 +71,7 @@ web/
 │   │   ├── useMediaSession.ts       # W3C MediaSession lock-screen integration
 │   │   └── useTheme.ts              # Theme selector hook
 │   ├── lib/
-│   │   ├── quranStream.ts           # 15 Reciters, 30 Juz mapping, 114 Surahs, CDN URLs
+│   │   ├── quranStream.ts           # 10 Reciters, Quran structure, 114 Surahs, shared API types
 │   │   ├── streamServer.ts          # Server-side byte mapping & stream pipe
 │   │   ├── themes.ts                # Glassmorphic color tokens
 │   │   └── utils.ts                 # ClassName merger (cn)
@@ -97,6 +98,9 @@ pnpm lint
 
 # Format code with Prettier
 pnpm format
+
+# Regenerate src/data/audioMetadata.json (after changing reciters / audio URLs)
+pnpm generate:audio
 
 # Verify formatting without modifying files
 pnpm format:check

@@ -1,40 +1,22 @@
 "use client";
 
-import React from "react";
-import { useAudioMixer, SOUNDS, PRESETS } from "@/hooks/useAudioMixer";
+import React, { memo } from "react";
+import { SOUNDS, PRESETS, type AudioMixer } from "@/hooks/useAudioMixer";
 import { Slider } from "@/components/ui/slider";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/button";
-import {
-  CloudRain,
-  CloudLightning,
-  Bird,
-  Volume2,
-  VolumeX,
-  Droplets,
-  TreePine,
-  RotateCcw,
-} from "lucide-react";
+import { CloudRain, CloudLightning, Bird, Droplets, TreePine, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 
-export default function AmbianceMixer() {
-  const { theme } = useTheme();
+interface AmbianceMixerProps {
+  mixer: AudioMixer;
+}
 
-  const {
-    volumes,
-    setVolume,
-    masterVolume,
-    setMasterVolume,
-    isMuted,
-    toggleMute,
-    activePreset,
-    applyPreset,
-    resetAll,
-    hasActiveSounds,
-  } = useAudioMixer();
+function AmbianceMixer({ mixer }: AmbianceMixerProps) {
+  const { theme } = useTheme();
+  const { volumes, setVolume, activePreset, applyPreset, resetAll, hasActiveSounds } = mixer;
 
   const getIcon = (iconName: string, isActive: boolean = false) => {
     // When active, we want white text because the background is the primary gradient.
@@ -62,32 +44,17 @@ export default function AmbianceMixer() {
 
   return (
     <GlassCard className={`p-4 sm:p-6 w-full ${theme.cardBg} ${theme.border}`}>
-      <SectionHeader
-        title="Nature Sounds"
-        // action={
-        //   hasActiveSounds ? (
-        //     <IconButton
-        //       onClick={resetAll}
-        //       variant="ghost"
-        //       aria-label="Reset all sounds"
-        //       title="Reset all"
-        //     >
-        //       <RotateCcw className="w-4 h-4" />
-        //     </IconButton>
-        //   ) : null
-        // }
-        className="mb-4 sm:mb-6"
-      />
+      <SectionHeader title="Nature Sounds" className="mb-4 sm:mb-6" />
 
       {/* Quick Presets */}
       <div className="mb-4 sm:mb-6">
-       
         <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
           {PRESETS.map((preset) => (
             <Button
               key={preset.id}
               onClick={() => applyPreset(preset.id)}
               variant="outline"
+              aria-pressed={activePreset === preset.id}
               className={cn(
                 "h-auto flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-500",
                 activePreset === preset.id
@@ -99,7 +66,7 @@ export default function AmbianceMixer() {
                 className={cn(
                   "p-2 rounded-lg transition-all",
                   activePreset === preset.id
-                    ? `bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-sm`
+                    ? `bg-linear-to-r from-teal-500 to-cyan-500 text-white shadow-sm`
                     : "bg-teal-50 text-teal-600 group-hover:bg-teal-100/50"
                 )}
               >
@@ -111,7 +78,7 @@ export default function AmbianceMixer() {
 
           {/* Reset Card - 4th slot */}
           <Button
-            onClick={hasActiveSounds ? resetAll : undefined}
+            onClick={resetAll}
             variant="outline"
             disabled={!hasActiveSounds}
             className={cn(
@@ -125,7 +92,7 @@ export default function AmbianceMixer() {
               className={cn(
                 "p-2 rounded-lg transition-all",
                 hasActiveSounds
-                  ? "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-sm"
+                  ? "bg-linear-to-r from-red-400 to-rose-500 text-white shadow-sm"
                   : "bg-gray-100 text-gray-400"
               )}
             >
@@ -137,7 +104,7 @@ export default function AmbianceMixer() {
       </div>
 
       {/* Divider */}
-      <div className={cn("h-px mb-4 sm:mb-6 opacity-50", theme.border)} />
+      <div className="h-px mb-4 sm:mb-6 opacity-50 bg-theme-border" />
 
       {/* Individual Sound Controls */}
       <div className="space-y-4 sm:space-y-5">
@@ -149,7 +116,7 @@ export default function AmbianceMixer() {
                 className={cn(
                   "p-2.5 rounded-xl transition-all duration-300",
                   isActive
-                    ? `bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/20`
+                    ? `bg-linear-to-br from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/20`
                     : `bg-teal-50/50 text-teal-600/70`
                 )}
               >
@@ -187,11 +154,9 @@ export default function AmbianceMixer() {
           );
         })}
       </div>
-
-      {/* Divider */}
-      <div className={cn("h-px my-4 sm:my-6 opacity-50", theme.border)} />
-
-     
     </GlassCard>
   );
 }
+
+// The page re-renders on every playback tick; the mixer only needs to when its own state changes.
+export default memo(AmbianceMixer);

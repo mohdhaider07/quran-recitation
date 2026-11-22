@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useMediaSession } from "@/hooks/useMediaSession";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // ─── Types & Constants ────────────────────────────────────────────────────────
 
@@ -18,6 +17,8 @@ export interface Preset {
   icon: string;
   volumes: Record<AmbientSoundType, number>;
 }
+
+export type AudioMixer = ReturnType<typeof useAudioMixer>;
 
 export const SOUNDS: SoundControl[] = [
   { id: "rain", label: "Rain", src: "/sounds/rain.mp3", icon: "CloudRain" },
@@ -41,21 +42,16 @@ export const PRESETS: Preset[] = [
   },
 ];
 
-// Static metadata — ambient sounds don't change track, so this never varies.
-const AMBIENT_MEDIA_METADATA = {
-  title: "Nature Ambience",
-  artist: "Peaceful Quran",
-  album: "Ambient Sounds",
-} as const;
+const SILENT: Record<AmbientSoundType, number> = { rain: 0, thunder: 0, birds: 0 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Ambient nature-sound mixer. Lock-screen / headset controls for it are wired up by
+ * `usePlaybackMediaSession`, which owns the page's single Media Session.
+ */
 export function useAudioMixer() {
-  const [volumes, setVolumes] = useState<Record<AmbientSoundType, number>>({
-    rain: 0,
-    thunder: 0,
-    birds: 0,
-  });
+  const [volumes, setVolumes] = useState<Record<AmbientSoundType, number>>(SILENT);
   const [masterVolume, setMasterVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -72,7 +68,10 @@ export function useAudioMixer() {
     const refs = audioRefs.current;
     SOUNDS.forEach(({ id, src }) => {
       if (!refs[id]) {
-        const audio = new Audio(src);
+        const audio = new Audio();
+        // `new Audio(src)` would preload every track; download only once a sound is turned up.
+        audio.preload = "none";
+        audio.src = src;
         audio.loop = true;
         audio.volume = 0; // Volume is applied by the playback-state effect below
         refs[id] = audio;
@@ -89,75 +88,76 @@ export function useAudioMixer() {
       audio.volume = isMuted ? 0 : vol * masterVolume;
       const shouldPlay = isPlaying && vol > 0 && !isMuted;
       if (shouldPlay && audio.paused)
-        audio.play().catch((e) => console.error(`Audio play failed [${id}]`, e));
+        audio.play().catch((e) => console.warn(`Audio play failed [${id}]`, e));
       if (!shouldPlay && !audio.paused) audio.pause();
     });
   }, [isPlaying, volumes, masterVolume, isMuted]);
 
-  // ── Media Session ────────────────────────────────────────────────────────────
-  // Delegates entirely to useMediaSession — no Media Session API code here.
-  // The handlers object is defined inline; useMediaSession's ref-delegate
-  // pattern means it won't trigger unnecessary re-registrations.
-  const handleStop = useCallback(() => {
-    setIsPlaying(false);
-    setVolumes({ rain: 0, thunder: 0, birds: 0 });
-  }, []);
-
-  useMediaSession({
-    metadata: AMBIENT_MEDIA_METADATA,
-    playbackState: isPlaying ? "playing" : "paused",
-    handlers: {
-      play: () => setIsPlaying(true),
-      pause: () => setIsPlaying(false),
-      stop: handleStop,
-    },
-  });
-
   // ── Public API ──────────────────────────────────────────────────────────────
 
+  const play = useCallback(() => setIsPlaying(true), []);
+  const pause = useCallback(() => setIsPlaying(false), []);
   const togglePlay = useCallback(() => setIsPlaying((p) => !p), []);
   const toggleMute = useCallback(() => setIsMuted((p) => !p), []);
 
-  const setVolume = useCallback(
-    (id: AmbientSoundType, val: number) => {
-      setVolumes((prev) => ({ ...prev, [id]: val }));
-      setActivePreset(null);
-      if (!isPlaying && val > 0) setIsPlaying(true);
-    },
-    [isPlaying]
-  );
+  const setVolume = useCallback((id: AmbientSoundType, val: number) => {
+    setVolumes((prev) => ({ ...prev, [id]: val }));
+    setActivePreset(null);
+    if (val > 0) setIsPlaying(true);
+  }, []);
 
-  const applyPreset = useCallback(
-    (presetId: string) => {
-      const preset = PRESETS.find((p) => p.id === presetId);
-      if (!preset) return;
-      setVolumes(preset.volumes);
-      setActivePreset(presetId);
-      if (!isPlaying) setIsPlaying(true);
-    },
-    [isPlaying]
-  );
+  const applyPreset = useCallback((presetId: string) => {
+    const preset = PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setVolumes(preset.volumes);
+    setActivePreset(presetId);
+    setIsPlaying(true);
+  }, []);
 
   const resetAll = useCallback(() => {
-    setVolumes({ rain: 0, thunder: 0, birds: 0 });
+    setVolumes(SILENT);
     setActivePreset(null);
     setIsPlaying(false);
   }, []);
 
   const hasActiveSounds = Object.values(volumes).some((v) => v > 0);
+  /** True when at least one ambient track is actually audible. */
+  const isAudible = isPlaying && hasActiveSounds && !isMuted;
 
-  return {
-    volumes,
-    setVolume,
-    masterVolume,
-    setMasterVolume,
-    isMuted,
-    toggleMute,
-    isPlaying,
-    togglePlay,
-    activePreset,
-    applyPreset,
-    resetAll,
-    hasActiveSounds,
-  };
+  // Memoized so components receiving the mixer only re-render when its state changes.
+  return useMemo(
+    () => ({
+      volumes,
+      setVolume,
+      masterVolume,
+      setMasterVolume,
+      isMuted,
+      toggleMute,
+      isPlaying,
+      isAudible,
+      play,
+      pause,
+      togglePlay,
+      activePreset,
+      applyPreset,
+      resetAll,
+      hasActiveSounds,
+    }),
+    [
+      volumes,
+      setVolume,
+      masterVolume,
+      isMuted,
+      toggleMute,
+      isPlaying,
+      isAudible,
+      play,
+      pause,
+      togglePlay,
+      activePreset,
+      applyPreset,
+      resetAll,
+      hasActiveSounds,
+    ]
+  );
 }

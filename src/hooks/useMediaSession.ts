@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,13 +11,7 @@ export interface MediaSessionMetadata {
 
 /** Subset of MediaSessionAction we actively support across this app. */
 export type SupportedMediaSessionAction =
-  | 'play'
-  | 'pause'
-  | 'stop'
-  | 'previoustrack'
-  | 'nexttrack'
-  | 'seekbackward'
-  | 'seekforward';
+  "play" | "pause" | "stop" | "previoustrack" | "nexttrack" | "seekbackward" | "seekforward";
 
 export type MediaSessionHandlers = Partial<
   Record<SupportedMediaSessionAction, MediaSessionActionHandler | null>
@@ -34,8 +28,8 @@ export interface UseMediaSessionOptions {
    */
   positionState?: MediaPositionState | null;
   /**
-   * Action handlers for lock-screen / headset hardware buttons.
-   * Uses a ref-delegate pattern internally, so callers do NOT need to
+   * Action handlers for lock-screen / headset hardware buttons. A `null` or missing handler
+   * hides that button. Uses a ref-delegate pattern internally, so callers do NOT need to
    * memoize these with useCallback — the hook always calls the latest version.
    */
   handlers?: MediaSessionHandlers;
@@ -44,8 +38,7 @@ export interface UseMediaSessionOptions {
 // ─── Feature detection ────────────────────────────────────────────────────────
 
 /** True only in a browser context that supports the Media Session API. */
-const isMediaSessionSupported =
-  typeof navigator !== 'undefined' && 'mediaSession' in navigator;
+const isMediaSessionSupported = typeof navigator !== "undefined" && "mediaSession" in navigator;
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -60,15 +53,12 @@ const isMediaSessionSupported =
  * playback alive when the screen locks — without it, the browser tab / renderer
  * is treated as a generic background page and its audio pipeline is suspended.
  *
- * **DRY design:**
- * All Media Session concerns (metadata, playback state, position state, action
- * handlers) are managed in one place. Consumers just pass their current state
- * and callbacks — no try/catch, no cleanup, no API knowledge required.
+ * The Media Session is a single page-wide object, so call this hook from exactly one place.
  *
  * @example
  * ```ts
  * useMediaSession({
- *   metadata: { title: 'Ayah 1', artist: 'Abdul Basit', album: 'Juz 1' },
+ *   metadata: { title: 'Juz 1', artist: 'Mishary Rashid Alafasy', album: 'Holy Quran' },
  *   playbackState: isPlaying ? 'playing' : 'paused',
  *   positionState: duration ? { duration, position: currentTime, playbackRate: 1 } : null,
  *   handlers: { play: onPlay, pause: onPause, nexttrack: onNext },
@@ -82,25 +72,27 @@ export function useMediaSession({
   handlers,
 }: UseMediaSessionOptions): void {
   // ── Handler ref-delegate ────────────────────────────────────────────────────
-  // Storing handlers in a ref means we register action handlers exactly once
-  // (avoiding repeated setActionHandler calls) while always calling the most
-  // up-to-date handler. This also means callers don't need useCallback.
+  // Storing handlers in a ref means setActionHandler only runs when the set of available
+  // actions changes, while every invocation still calls the most up-to-date handler.
   const handlersRef = useRef<MediaSessionHandlers | undefined>(handlers);
-  // Always keep the ref in sync with the latest prop value, synchronously.
-  handlersRef.current = handlers;
-
-  // Register once; delegate every invocation to the ref.
   useEffect(() => {
-    if (!isMediaSessionSupported || !handlers) return;
+    handlersRef.current = handlers;
+  });
 
-    const actions = Object.keys(handlers) as SupportedMediaSessionAction[];
+  const activeActions = (Object.keys(handlers ?? {}) as SupportedMediaSessionAction[])
+    .filter((action) => handlers?.[action])
+    .sort()
+    .join(",");
+
+  useEffect(() => {
+    if (!isMediaSessionSupported || !activeActions) return;
+    const actions = activeActions.split(",") as SupportedMediaSessionAction[];
 
     actions.forEach((action) => {
       try {
-        navigator.mediaSession.setActionHandler(action, (...args) => {
+        navigator.mediaSession.setActionHandler(action, (details) => {
           // Call the current handler from the ref, not the stale closure.
-          (handlersRef.current?.[action] as MediaSessionActionHandler | null | undefined)
-            ?.(...args);
+          handlersRef.current?.[action]?.(details);
         });
       } catch {
         // Not every browser/version supports every action — fail silently.
@@ -111,20 +103,27 @@ export function useMediaSession({
       actions.forEach((action) => {
         try {
           navigator.mediaSession.setActionHandler(action, null);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMediaSessionSupported]); // intentionally runs once; ref provides freshness
+  }, [activeActions]);
 
   // ── Metadata ────────────────────────────────────────────────────────────────
   // Destructure to primitive deps so the effect re-runs only when actual values
   // change, not on every render when the caller constructs a new object literal.
-  const { title, artist, album } = metadata;
+  const { title, artist, album, artwork } = metadata;
+  const artworkKey = JSON.stringify(artwork ?? []);
   useEffect(() => {
     if (!isMediaSessionSupported) return;
-    navigator.mediaSession.metadata = new MediaMetadata({ title, artist, album });
-  }, [title, artist, album]);
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist,
+      album,
+      artwork: JSON.parse(artworkKey) as MediaImage[],
+    });
+  }, [title, artist, album, artworkKey]);
 
   // ── Playback state ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -134,15 +133,20 @@ export function useMediaSession({
 
   // ── Position state (lock-screen seek bar) ───────────────────────────────────
   // Destructure to primitives for the same reason as metadata above.
-  const duration     = positionState?.duration;
-  const position     = positionState?.position;
+  const duration = positionState?.duration;
+  const position = positionState?.position;
   const playbackRate = positionState?.playbackRate;
   useEffect(() => {
-    if (!isMediaSessionSupported || !duration) return;
+    if (!isMediaSessionSupported) return;
     try {
+      if (!duration) {
+        navigator.mediaSession.setPositionState(); // Clears a previously shown seek bar.
+        return;
+      }
       navigator.mediaSession.setPositionState({
         duration,
-        position:     position     ?? 0,
+        // setPositionState throws when position exceeds duration.
+        position: Math.min(Math.max(position ?? 0, 0), duration),
         playbackRate: playbackRate ?? 1,
       });
     } catch {

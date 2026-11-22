@@ -72,15 +72,16 @@ Main Layout (12-Column Responsive Grid)
 │           ├── Core Controls (Prev Juz, Play/Pause, Next Juz)
 │           └── Volume Slider & Mute Toggle
 └── Secondary Column (4 Cols)
-    ├── AmbianceMixer (Quick Presets, Reset, 5 Sound Volume Sliders)
+    ├── AmbianceMixer (Quick Presets, Reset, 3 Sound Volume Sliders)
     └── Pro Tip GlassCard
 ```
 
 ### 4.1 Selection Drawers (Reciter & Juz)
 
 - Clicking a trigger opens a full-height glassmorphic drawer overlay that slides up smoothly (`translate-y-0 opacity-100`).
-- **Reciter Drawer**: Shows all 15 high-speed CDN reciters with their English name, Arabic script name, and recitation style badge (`Murattal` / `Mujawwad`). Active reciter is highlighted with the primary gradient.
-- **Juz Drawer**: Lists Juz 1 to 30 with Para numbering.
+- **Reciter Drawer**: Shows all 10 reciters with their English name, Arabic script name, language and recitation style (`Murattal` / `Mujawwad` / `Translation`). Active reciter is highlighted with the primary gradient.
+- **Dismissal**: Drawers close with the close button, Escape, or the browser / Android back button, and scroll the current selection into view when opened.
+- **Juz Drawer**: Lists Juz 1 to 30 with Para numbering and the surah and ayah where each Juz begins.
 - **Ayat Selection**: Intentionally removed from the interface to focus exclusively on uninterrupted Juz listening.
 
 ### 4.2 Main Playback Controls
@@ -92,9 +93,9 @@ Main Layout (12-Column Responsive Grid)
 
 ### 4.3 Ambiance Sound Mixer
 
-- **Quick Preset Buttons**: Rain, Night, Birds, Calm.
+- **Quick Preset Buttons**: Calm, Storm, Forest.
 - **Reset Button**: Easily resets all ambient sound tracks to 0 with a single tap.
-- **Individual Sliders**: 5 nature sounds (Rain, Lightning, Birds, Water Droplets, Forest Pine) with active color reaction.
+- **Individual Sliders**: 3 nature sounds (Rain, Thunder, Birds) with active color reaction.
 
 ---
 

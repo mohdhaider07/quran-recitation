@@ -1,5 +1,16 @@
 import { useEffect, useRef } from "react";
 
+type AppShellWindow = Window & { ReactNativeWebView?: unknown; PeacefulQuranApp?: unknown };
+
+/**
+ * Android app builds before the `PeacefulQuranApp` shell treated in-page history entries as page
+ * loads and froze behind their loading screen, so drawers there don't add one.
+ */
+function canUseHistory(): boolean {
+  const shell = window as AppShellWindow;
+  return !shell.ReactNativeWebView || Boolean(shell.PeacefulQuranApp);
+}
+
 /**
  * Lets an open drawer be dismissed with Escape or the browser / Android back button.
  *
@@ -15,7 +26,10 @@ export function useDrawerDismiss(isOpen: boolean, onDismiss: () => void): void {
   useEffect(() => {
     if (!isOpen) return;
     const marker = Date.now();
-    window.history.pushState({ ...window.history.state, drawer: marker }, "");
+    const usesHistory = canUseHistory();
+    if (usesHistory) {
+      window.history.pushState({ ...window.history.state, drawer: marker }, "");
+    }
     let closedByHistory = false;
 
     const onPopState = () => {
@@ -32,7 +46,7 @@ export function useDrawerDismiss(isOpen: boolean, onDismiss: () => void): void {
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener("keydown", onKeyDown);
       // Closed from the UI: drop the history entry added on open.
-      if (!closedByHistory && window.history.state?.drawer === marker) {
+      if (usesHistory && !closedByHistory && window.history.state?.drawer === marker) {
         window.history.back();
       }
     };

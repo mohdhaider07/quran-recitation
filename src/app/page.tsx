@@ -39,7 +39,7 @@ export default function Home() {
               width={80}
               height={80}
               priority
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-lg border border-teal-500/20 bg-teal-950/5 dark:bg-emerald-950/20 p-1 shrink-0"
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-lg shadow-teal-900/20 shrink-0"
             />
             <div>
               <h1
